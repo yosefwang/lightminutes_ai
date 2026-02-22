@@ -1,8 +1,7 @@
 import { defineConfig } from '@trigger.dev/sdk/v3';
 
 export default defineConfig({
-  project: 'proj_djysjzfpwoqbjlvvkzge',
-  dirs: ['./trigger'],
+  project: 'lightminute-ai',
   runtime: 'node',
   logLevel: 'info',
   maxDuration: 300,
