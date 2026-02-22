@@ -244,11 +244,6 @@ export function PromptSettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY_ACTIVE_SUMMARY, activeSummaryPromptId);
   }, [activeSummaryPromptId]);
 
-  // Listen to language changes from AppContext and reset prompts
-  useEffect(() => {
-    resetToLanguageDefaults(lang);
-  }, [lang, resetToLanguageDefaults]);
-
   const resetToLanguageDefaults = useCallback((lang: 'zh' | 'en') => {
     const defaults = getDefaultPrompts(lang);
     const defaultIdsForLang = getDefaultActiveIds(lang);
@@ -257,6 +252,11 @@ export function PromptSettingsProvider({ children }: { children: ReactNode }) {
     setActiveSummaryPromptId(defaultIdsForLang.summary);
     localStorage.setItem(STORAGE_KEY_LANG, lang);
   }, []);
+
+  // Listen to language changes from AppContext and reset prompts
+  useEffect(() => {
+    resetToLanguageDefaults(lang);
+  }, [lang, resetToLanguageDefaults]);
 
   const updatePrompt = (id: string, updates: { name?: string; content?: string }) => {
     setPrompts((prev) =>
