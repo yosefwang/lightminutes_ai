@@ -4,7 +4,8 @@ import { ulid } from 'ulid';
 import { v4 as uuidv4 } from 'uuid';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 import { createRecording as createLegacyRecording } from '@/lib/server/db';
-import { processSupabaseRecording } from '@/lib/server/services/processRecording';
+import { tasks } from '@trigger.dev/sdk/v3';
+import type { processRecording } from '@/trigger/process-recording';
 
 export async function POST(request: Request) {
   try {
@@ -58,20 +59,14 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      // Trigger processing in background
-      (async () => {
-        try {
-          await processSupabaseRecording(
-            data.id,
-            userId,
-            r2AudioKey,
-            r2AudioUrl,
-            summaryLanguage || 'zh'
-          );
-        } catch (err) {
-          console.error('Failed to process recording:', err);
-        }
-      })();
+      // Trigger Trigger.dev task
+      await tasks.trigger<typeof processRecording>('process-recording', {
+        recordingId: data.id,
+        userId,
+        r2AudioKey,
+        r2AudioUrl,
+        summaryLanguage: (summaryLanguage || 'zh') as 'zh' | 'en' | 'bilingual',
+      });
 
       return NextResponse.json({ id: data.id, recording: data });
     }
