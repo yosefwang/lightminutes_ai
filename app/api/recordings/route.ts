@@ -4,6 +4,7 @@ import { ulid } from 'ulid';
 import { v4 as uuidv4 } from 'uuid';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 import { createRecording as createLegacyRecording } from '@/lib/server/db';
+import { processSupabaseRecording } from '@/lib/server/services/processRecording';
 
 export async function POST(request: Request) {
   try {
@@ -58,11 +59,19 @@ export async function POST(request: Request) {
       }
 
       // Trigger processing in background
-      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/process-supabase/${data.id}`, {
-        method: 'POST',
-      }).catch((err) => {
-        console.error('Failed to trigger processing:', err);
-      });
+      (async () => {
+        try {
+          await processSupabaseRecording(
+            data.id,
+            userId,
+            r2AudioKey,
+            r2AudioUrl,
+            summaryLanguage || 'zh'
+          );
+        } catch (err) {
+          console.error('Failed to process recording:', err);
+        }
+      })();
 
       return NextResponse.json({ id: data.id, recording: data });
     }
