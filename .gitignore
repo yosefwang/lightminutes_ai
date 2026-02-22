@@ -50,3 +50,5 @@ _legacy/
 /.clerk/
 
 .*
+!.gitignore
+!.env.example
