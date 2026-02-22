@@ -1,0 +1,99 @@
+{
+  "app": {
+    "title": "LiteMinute AI",
+    "subtitle": "Speech to Text & Smart Summary",
+    "loading": "Loading...",
+    "error": "An error occurred"
+  },
+  "tabs": {
+    "local": "Local",
+    "cloud": "Cloud",
+    "stats": "Stats"
+  },
+  "nav": {
+    "language": "Language",
+    "theme": "Theme",
+    "colorTheme": "Color Theme",
+    "promptSettings": "Prompt Settings",
+    "signOut": "Sign Out"
+  },
+  "recorder": {
+    "title": "Recorder",
+    "start": "Start Recording",
+    "stop": "Stop Recording",
+    "recording": "Recording",
+    "uploading": "Processing...",
+    "uploadSuccess": "Saved!",
+    "uploadError": "Save failed",
+    "duration": "Duration",
+    "cancel": "Cancel"
+  },
+  "status": {
+    "recording": "Recording",
+    "processing": "Processing",
+    "completed": "Completed",
+    "failed": "Failed"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No recordings yet",
+    "emptyDesc": "Start recording to create your first entry",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this recording?",
+    "deleteAllConfirm": "Are you sure you want to delete all local recordings? This action cannot be undone.",
+    "deleteAll": "Delete All",
+    "copied": "Copied to clipboard",
+    "copy": "Copy",
+    "showTranscript": "Show Transcript",
+    "hideTranscript": "Hide Transcript",
+    "noSummary": "No summary yet",
+    "noTranscript": "No transcript yet"
+  },
+  "summary": {
+    "title": "Summary",
+    "topic": "Topic",
+    "keyPoints": "Key Points",
+    "actionItems": "Action Items",
+    "generating": "Generating summary...",
+    "language": "Summary Language",
+    "chinese": "Chinese",
+    "english": "English",
+    "bilingual": "Bilingual",
+    "regenerate": "Regenerate"
+  },
+  "cloud": {
+    "upload": "Upload to Cloud",
+    "uploading": "Uploading...",
+    "uploaded": "Uploaded",
+    "remove": "Remove from Cloud",
+    "removeConfirm": "Are you sure you want to remove this recording from the cloud?",
+    "empty": "No cloud recordings",
+    "emptyDesc": "Upload local recordings to the cloud",
+    "delete": "Delete",
+    "deleteConfirm": "Are you sure you want to delete this from the cloud?",
+    "tags": "Tags",
+    "search": "Search...",
+    "filter": "Filter",
+    "all": "All",
+    "notConfigured": "R2 not configured",
+    "uploadOptions": "Upload Content",
+    "audioOnly": "Audio Only",
+    "summaryOnly": "Summary Only",
+    "both": "Both",
+    "groupYear": "By Year",
+    "groupMonth": "By Month",
+    "groupTag": "By Tag"
+  },
+  "playback": {
+    "play": "Play",
+    "pause": "Pause",
+    "noAudio": "No Audio"
+  },
+  "stats": {
+    "empty": "No recordings yet",
+    "emptyDesc": "Start recording to see your stats",
+    "thisWeek": "This Week",
+    "recordingDuration": "Recording Duration (minutes)",
+    "statusDistribution": "Status Distribution"
+  }
+}

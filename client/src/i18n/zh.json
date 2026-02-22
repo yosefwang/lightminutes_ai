@@ -1,0 +1,99 @@
+{
+  "app": {
+    "title": "LiteMinute AI",
+    "subtitle": "语音转文字与智能摘要",
+    "loading": "加载中...",
+    "error": "发生错误"
+  },
+  "tabs": {
+    "local": "本地",
+    "cloud": "云端",
+    "stats": "统计"
+  },
+  "nav": {
+    "language": "语言",
+    "theme": "主题",
+    "colorTheme": "配色",
+    "promptSettings": "提示词设置",
+    "signOut": "退出登录"
+  },
+  "recorder": {
+    "title": "录音",
+    "start": "开始录音",
+    "stop": "停止录音",
+    "recording": "正在录音",
+    "uploading": "处理中...",
+    "uploadSuccess": "已保存！",
+    "uploadError": "保存失败",
+    "duration": "时长",
+    "cancel": "取消"
+  },
+  "status": {
+    "recording": "录音中",
+    "processing": "处理中",
+    "completed": "已完成",
+    "failed": "失败"
+  },
+  "history": {
+    "title": "历史记录",
+    "empty": "暂无录音记录",
+    "emptyDesc": "开始录音来创建第一条记录",
+    "delete": "删除",
+    "deleteConfirm": "确定要删除这条录音吗？",
+    "deleteAllConfirm": "确定要删除所有本地录音吗？此操作不可撤销。",
+    "deleteAll": "全部删除",
+    "copied": "已复制到剪贴板",
+    "copy": "复制",
+    "showTranscript": "显示原文",
+    "hideTranscript": "隐藏原文",
+    "noSummary": "暂无摘要",
+    "noTranscript": "暂无转录"
+  },
+  "summary": {
+    "title": "摘要",
+    "topic": "会议主题",
+    "keyPoints": "关键要点",
+    "actionItems": "待办事项",
+    "generating": "正在生成摘要...",
+    "language": "摘要语言",
+    "chinese": "中文",
+    "english": "英文",
+    "bilingual": "中英双语",
+    "regenerate": "重新生成"
+  },
+  "cloud": {
+    "upload": "上传云端",
+    "uploading": "上传中...",
+    "uploaded": "已上传",
+    "remove": "移除云端",
+    "removeConfirm": "确定要从云端移除这条录音吗？",
+    "empty": "云端暂无录音",
+    "emptyDesc": "上传本地录音到云端",
+    "delete": "删除",
+    "deleteConfirm": "确定要从云端删除这条录音吗？",
+    "tags": "标签",
+    "search": "搜索...",
+    "filter": "筛选",
+    "all": "全部",
+    "notConfigured": "R2 未配置",
+    "uploadOptions": "上传内容",
+    "audioOnly": "仅音频",
+    "summaryOnly": "仅摘要",
+    "both": "全部",
+    "groupYear": "按年份",
+    "groupMonth": "按月份",
+    "groupTag": "按标签"
+  },
+  "playback": {
+    "play": "播放",
+    "pause": "暂停",
+    "noAudio": "无音频"
+  },
+  "stats": {
+    "empty": "暂无录音",
+    "emptyDesc": "开始录音来查看统计",
+    "thisWeek": "本周",
+    "recordingDuration": "录音时长（分钟）",
+    "statusDistribution": "状态分布"
+  }
+}
