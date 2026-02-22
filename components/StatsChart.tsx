@@ -6,7 +6,19 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { Calendar, Clock, TrendingUp, Mic } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader } from './ui/card';
-import type { Recording } from './RecordingList';
+
+interface Recording {
+  id: string;
+  title: string;
+  audioPath: string;
+  transcript: string | null;
+  summary: string | null;
+  status: 'recording' | 'processing' | 'completed' | 'failed';
+  duration: number | null;
+  createdAt: number;
+  tags: string[];
+  summaryLanguage: 'zh' | 'en' | 'bilingual';
+}
 
 interface StatsChartProps {
   refreshTrigger?: number;
@@ -39,7 +51,6 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
   const totalRecordings = recordings.length;
   const totalDuration = recordings.reduce((acc, r) => acc + (r.duration || 0), 0);
   const completedRecordings = recordings.filter((r) => r.status === 'completed').length;
-  const cloudRecordings = recordings.filter((r) => r.cloudStatus === 'uploaded').length;
 
   // Prepare weekly data
   const getWeeklyData = () => {
@@ -167,8 +178,8 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
                 <Calendar className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{cloudRecordings}</p>
-                <p className="text-sm text-muted-foreground">{t('tabs.cloud')}</p>
+                <p className="text-2xl font-bold">—</p>
+                <p className="text-sm text-muted-foreground">Cloud Sync</p>
               </div>
             </div>
           </CardContent>

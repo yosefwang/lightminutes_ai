@@ -11,12 +11,8 @@ import {
   Loader2,
   Clock,
   Calendar,
-  UploadCloud,
-  Cloud,
-  CloudOff,
   Trash,
   Tag,
-  Folder,
   RefreshCw,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,10 +22,8 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { AudioPlayer } from './AudioPlayer';
-import { cn } from '@/lib/utils';
 
 export type SummaryLanguage = 'zh' | 'en' | 'bilingual';
-export type UploadOption = 'audio' | 'summary' | 'both';
 
 export interface Recording {
   id: string;
@@ -40,9 +34,6 @@ export interface Recording {
   status: 'recording' | 'processing' | 'completed' | 'failed';
   duration: number | null;
   createdAt: number;
-  cloudStatus: 'not_uploaded' | 'uploading' | 'uploaded' | 'deleting';
-  cloudKey: string | null;
-  cloudUrl: string | null;
   tags: string[];
   summaryLanguage: SummaryLanguage;
 }
@@ -83,14 +74,11 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [showTranscript, setShowTranscript] = useState<Record<string, boolean>>({});
-  const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteAllLoading, setDeleteAllLoading] = useState(false);
-  const [uploadOptions, setUploadOptions] = useState<Record<string, UploadOption>>({});
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [regenerationState, setRegenerationState] = useState<Record<string, 'idle' | 'regenerating' | 'completed'>>({});
 
-  const doFetch = async () => {
+  const doFetch = useCallback(async () => {
     try {
       const res = await fetch('/api/history');
       if (res.ok) {
@@ -102,11 +90,11 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     doFetch();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, doFetch]);
 
   // Poll for updates when there are processing recordings
   useEffect(() => {
@@ -118,7 +106,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [recordings]);
+  }, [recordings, doFetch]);
 
   const deleteRecording = async (id: string) => {
     if (!window.confirm(t('history.deleteConfirm'))) return;
@@ -153,60 +141,21 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     }
   };
 
-  const uploadToCloud = async (id: string, option: UploadOption = 'both') => {
-    setUploadingId(id);
-    try {
-      const res = await fetch(`/api/cloud/upload/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ uploadOption: option }),
-      });
-      if (res.ok) {
-        await doFetch();
-        onRefresh?.();
-      }
-    } catch (err) {
-      console.error('Failed to upload to cloud:', err);
-    } finally {
-      setUploadingId(null);
-    }
-  };
-
-  const removeFromCloud = async (id: string) => {
-    if (!window.confirm(t('cloud.removeConfirm'))) return;
-    setDeletingId(id);
-    try {
-      const res = await fetch(`/api/cloud/delete/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        await doFetch();
-        onRefresh?.();
-      }
-    } catch (err) {
-      console.error('Failed to remove from cloud:', err);
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
   const regenerateSummary = async (id: string, promptTemplate?: string) => {
-    // Set state to regenerating
     setRegenerationState((prev) => ({ ...prev, [id]: 'regenerating' }));
 
     try {
-      // First, update the recording status locally to processing
       setRecordings((prev) =>
         prev.map((r) =>
           r.id === id ? { ...r, status: 'processing', summary: null } : r
         )
       );
 
-      // Prepare the prompt template - make sure it has the transcript placeholder
       let processedPrompt = promptTemplate;
       if (processedPrompt && !processedPrompt.includes('{transcript}')) {
         processedPrompt = processedPrompt + '\n\nTranscript:\n{transcript}';
       }
 
-      // Call the regenerate API
       const res = await fetch(`/api/regenerate-summary/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -217,27 +166,23 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
       });
 
       if (res.ok) {
-        // Poll for updates until completed or timeout
         let pollCount = 0;
-        const maxPolls = 60; // 30 seconds max
+        const maxPolls = 60;
 
         const pollInterval = setInterval(async () => {
           pollCount++;
 
-          // Fetch fresh data directly
           try {
             const pollRes = await fetch('/api/history');
             if (pollRes.ok) {
               const data = await pollRes.json();
               setRecordings(data);
 
-              // Check if the recording is completed
               const updatedRecording = data.find((r: Recording) => r.id === id);
               if (updatedRecording && updatedRecording.status === 'completed' && updatedRecording.summary) {
                 clearInterval(pollInterval);
                 setRegenerationState((prev) => ({ ...prev, [id]: 'completed' }));
 
-                // Show completed for 2 seconds, then back to idle
                 setTimeout(() => {
                   setRegenerationState((prev) => ({ ...prev, [id]: 'idle' }));
                 }, 2000);
@@ -366,12 +311,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
       >
         <AnimatePresence mode="popLayout">
           {recordings.map((recording) => {
-            const isUploadDisabled = recording.status !== 'completed';
-            const isUploading = uploadingId === recording.id || recording.cloudStatus === 'uploading';
-            const isDeleting = deletingId === recording.id || recording.cloudStatus === 'deleting';
-            const isUploaded = recording.cloudStatus === 'uploaded';
             const isPlaying = playingId === recording.id;
-            const uploadOption = uploadOptions[recording.id] || 'both';
             const isExpanded = expandedId === recording.id;
             const regenState = regenerationState[recording.id] || 'idle';
             const isProcessing = recording.status === 'processing' || regenState === 'regenerating';
@@ -397,12 +337,6 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
                           <Badge variant={getStatusVariant(recording.status)}>
                             {t(`status.${recording.status}`)}
                           </Badge>
-                          {isUploaded && (
-                            <Badge variant="secondary" className="flex items-center gap-1">
-                              <Cloud className="w-3 h-3" />
-                              <span>{t('cloud.uploaded')}</span>
-                            </Badge>
-                          )}
                         </div>
 
                         {recording.tags.length > 0 && (
@@ -434,46 +368,6 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
                       </div>
 
                       <div className="flex items-center gap-1 ml-2 shrink-0">
-                        {isUploaded ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              removeFromCloud(recording.id);
-                            }}
-                            disabled={isDeleting}
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            title={t('cloud.remove')}
-                          >
-                            {isDeleting ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <CloudOff className="w-5 h-5" />
-                            )}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              uploadToCloud(recording.id, uploadOption);
-                            }}
-                            disabled={isUploadDisabled || isUploading}
-                            className={cn(
-                              !isUploadDisabled && 'text-primary hover:text-primary hover:bg-primary/10'
-                            )}
-                            title={t('cloud.upload')}
-                          >
-                            {isUploading ? (
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                              <UploadCloud className="w-5 h-5" />
-                            )}
-                          </Button>
-                        )}
-
                         <Button
                           variant="ghost"
                           size="icon"
@@ -512,32 +406,6 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
                             onPlayPause={() => handlePlayPause(recording.id)}
                             className="py-2"
                           />
-
-                          {recording.status === 'completed' && !isUploaded && (
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-t border-border pt-2">
-                              <div className="flex items-center gap-2">
-                                <Folder className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {t('cloud.uploadOptions')}:
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                {(['audio', 'summary', 'both'] as const).map((opt) => (
-                                  <Button
-                                    key={opt}
-                                    variant={uploadOption === opt ? 'default' : 'secondary'}
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setUploadOptions((prev) => ({ ...prev, [recording.id]: opt }));
-                                    }}
-                                  >
-                                    {t(`cloud.${opt === 'audio' ? 'audioOnly' : opt === 'summary' ? 'summaryOnly' : 'both'}`)}
-                                  </Button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
 
                           {recording.status === 'completed' && (
                             <div className="flex items-center justify-between gap-3 pb-3 border-b">

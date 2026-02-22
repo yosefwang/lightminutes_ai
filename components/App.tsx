@@ -2,12 +2,10 @@
 
 import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
-import { Mic, HardDrive, Cloud, BarChart3 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Mic, ListMusic, BarChart3 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { Recorder } from './Recorder';
 import { RecordingList } from './RecordingList';
-import { CloudTab } from './CloudTab';
 import { StatsChart } from './StatsChart';
 import { LandingPage } from './LandingPage';
 import { ThemeToggle } from './ThemeToggle';
@@ -16,19 +14,18 @@ import { ColorThemePicker } from './ColorThemePicker';
 import { UserMenu } from './UserMenu';
 import { PromptSettingsModal } from './PromptSettingsModal';
 
-type Tab = 'local' | 'cloud' | 'stats';
+type Tab = 'recordings' | 'stats';
 
 export function App() {
   const { t } = useApp();
-  const [tab, setTab] = useState<Tab>('local');
+  const [tab, setTab] = useState<Tab>('recordings');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showPromptSettings, setShowPromptSettings] = useState(false);
 
   const refresh = () => setRefreshTrigger((prev) => prev + 1);
 
   const tabs: { id: Tab; icon: typeof Mic; label: string }[] = [
-    { id: 'local', icon: HardDrive, label: t('tabs.local') },
-    { id: 'cloud', icon: Cloud, label: t('tabs.cloud') },
+    { id: 'recordings', icon: ListMusic, label: t('tabs.local') },
     { id: 'stats', icon: BarChart3, label: t('tabs.stats') },
   ];
 
@@ -85,23 +82,15 @@ export function App() {
                 ))}
               </div>
 
-              {/* Tab Content - Render all, use CSS grid to stack, opacity for animations */}
+              {/* Tab Content */}
               <div className="grid grid-cols-1">
                 <div
                   className={
                     'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
-                    (tab === 'local' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
+                    (tab === 'recordings' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
                   }
                 >
                   <RecordingList refreshTrigger={refreshTrigger} onRefresh={refresh} />
-                </div>
-                <div
-                  className={
-                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
-                    (tab === 'cloud' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
-                  }
-                >
-                  <CloudTab refreshTrigger={refreshTrigger} />
                 </div>
                 <div
                   className={
