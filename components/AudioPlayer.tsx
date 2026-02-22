@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -36,12 +36,12 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
   const [dragTime, setDragTime] = useState(0);
   const [wasPlayingBeforeDrag, setWasPlayingBeforeDrag] = useState(false);
 
-  const getAudioSrc = () => {
+  const getAudioSrc = useCallback(() => {
     if (audioBase64) {
       return `data:audio/webm;base64,${audioBase64}`;
     }
     return audioPath || '';
-  };
+  }, [audioPath, audioBase64]);
 
   useEffect(() => {
     if (propDuration && propDuration > 0 && isFinite(propDuration)) {
@@ -83,13 +83,19 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
       handleLoadedMetadata();
     };
 
+    const handleError = (e: Event) => {
+      console.error('Audio error:', e);
+    };
+
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
 
     if (audio.src !== src) {
       audio.src = src;
+      audio.load();
     }
 
     return () => {
@@ -97,8 +103,9 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
       audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
     };
-  }, [audioPath, audioBase64, onPlayPause, duration]);
+  }, [getAudioSrc, onPlayPause, duration, isDragging]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -159,11 +166,20 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
   const remainingTime = validDuration > 0 ? Math.max(0, validDuration - displayTime) : 0;
   const progress = validDuration > 0 ? (displayTime / validDuration) * 100 : 0;
 
+  const src = getAudioSrc();
+  const hasAudio = !!src;
+
   return (
     <div className={cn('flex items-center gap-2 sm:gap-3 w-full', className)}>
       <button
         onClick={onPlayPause}
-        className="flex-shrink-0 w-10 h-10 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
+        disabled={!hasAudio}
+        className={cn(
+          "flex-shrink-0 w-10 h-10 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-colors",
+          hasAudio
+            ? "bg-primary text-primary-foreground hover:bg-primary/90"
+            : "bg-muted text-muted-foreground cursor-not-allowed"
+        )}
       >
         {isPlaying ? (
           <Pause className="w-5 h-5 fill-current" />
@@ -185,15 +201,15 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
             onMouseUp={validDuration > 0 ? handleSeekEnd : undefined}
             onTouchStart={validDuration > 0 ? handleSeekStart : undefined}
             onTouchEnd={validDuration > 0 ? handleSeekEnd : undefined}
-            disabled={validDuration <= 0}
+            disabled={validDuration <= 0 || !hasAudio}
             className={cn(
               "w-full h-2 rounded-lg appearance-none cursor-pointer",
-              validDuration > 0
+              validDuration > 0 && hasAudio
                 ? "accent-primary"
                 : "cursor-not-allowed"
             )}
             style={{
-              background: validDuration > 0
+              background: validDuration > 0 && hasAudio
                 ? `linear-gradient(to right, hsl(var(--primary)) ${progress}%, hsl(var(--muted)) ${progress}%)`
                 : undefined,
             }}
@@ -207,7 +223,13 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
 
       <button
         onClick={() => setIsMuted(!isMuted)}
-        className="flex-shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
+        disabled={!hasAudio}
+        className={cn(
+          "flex-shrink-0 p-2 transition-colors",
+          hasAudio
+            ? "text-muted-foreground hover:text-foreground"
+            : "text-muted-foreground/50 cursor-not-allowed"
+        )}
       >
         {isMuted ? (
           <VolumeX className="w-5 h-5" />
