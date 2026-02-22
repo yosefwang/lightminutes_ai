@@ -1,7 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Remove output: 'standalone' for development.
+  // Uncomment this for production deployment.
+  // output: 'standalone',
 };
 
 export default nextConfig;

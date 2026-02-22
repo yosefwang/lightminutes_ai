@@ -144,7 +144,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm"
             onClick={onClose}
           />
 
@@ -155,14 +155,14 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
             transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-[10000] w-full max-w-5xl mx-2 sm:mx-4"
           >
-            <Card className="flex flex-col"
+            <Card className="flex flex-col border-white/10 bg-white/[0.08] backdrop-blur-xl"
                   style={{
                     maxHeight: 'calc(100vh - 100px)',
                   }}>
-              <CardHeader className="flex flex-row items-center justify-between pb-4 border-b shrink-0">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 border-b border-white/10 shrink-0">
                 <div className="min-w-0">
-                  <h2 className="text-lg sm:text-xl font-semibold truncate">{t('nav.promptSettings')}</h2>
-                  <p className="text-xs sm:text-sm text-muted-foreground truncate hidden sm:block">
+                  <h2 className="text-lg sm:text-xl font-semibold truncate text-slate-100">{t('nav.promptSettings')}</h2>
+                  <p className="text-xs sm:text-sm text-slate-400 truncate hidden sm:block">
                     {lang === 'zh' ? '管理用于转录和摘要的提示词模板' : 'Manage prompt templates for transcription and summary'}
                   </p>
                 </div>
@@ -174,14 +174,14 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
 
               <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
                 {/* View Tabs */}
-                <div className="flex border-b shrink-0">
+                <div className="flex border-b border-white/10 shrink-0">
                   <button
                     onClick={() => setViewTab('transcribe')}
                     className={cn(
                       'flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 min-h-[2.75rem]',
                       viewTab === 'transcribe'
-                        ? 'text-primary border-b-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? 'text-primary-400 border-b-2 border-primary-500 bg-white/[0.04]'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
                     )}
                   >
                     <Type className="w-4 h-4" />
@@ -192,8 +192,8 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                     className={cn(
                       'flex-1 py-3 text-sm font-medium transition-colors flex items-center justify-center gap-2 min-h-[2.75rem]',
                       viewTab === 'summary'
-                        ? 'text-primary border-b-2 border-primary'
-                        : 'text-muted-foreground hover:text-foreground'
+                        ? 'text-primary-400 border-b-2 border-primary-500 bg-white/[0.04]'
+                        : 'text-slate-400 hover:text-slate-200 hover:bg-white/[0.02]'
                     )}
                   >
                     <CheckCircle2 className="w-4 h-4" />
@@ -203,17 +203,17 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
 
                 {/* Desktop: Two column layout */}
                 <div className="hidden md:flex flex-1 overflow-hidden" style={{ minHeight: '400px' }}>
-                  <div className="w-64 border-r p-4 overflow-y-auto shrink-0">
+                  <div className="w-64 border-r border-white/10 p-4 overflow-y-auto shrink-0">
                     <div className="space-y-2">
                       {currentPrompts.map((prompt) => (
                         <button
                           key={prompt.id}
                           onClick={() => handleSelectPrompt(prompt)}
                           className={cn(
-                            'w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg text-left transition-colors group min-h-[2.75rem]',
+                            'w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-left transition-colors group min-h-[2.75rem]',
                             selectedPromptId === prompt.id
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-accent text-foreground'
+                              ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/20'
+                              : 'hover:bg-white/[0.06] text-slate-200'
                           )}
                         >
                           <span className="text-sm font-medium truncate flex-1">{prompt.name}</span>
@@ -225,10 +225,10 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                               <button
                                 onClick={(e) => handleDeletePrompt(e, prompt.id)}
                                 className={cn(
-                                  'p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity min-h-[2rem] min-w-[2rem]',
+                                  'p-1 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity min-h-[2rem] min-w-[2rem]',
                                   selectedPromptId === prompt.id
-                                    ? 'hover:bg-primary-foreground/20'
-                                    : 'hover:bg-muted'
+                                    ? 'hover:bg-white/20'
+                                    : 'hover:bg-white/[0.06]'
                                 )}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -246,7 +246,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                           value={newPromptName}
                           onChange={(e) => setNewPromptName(e.target.value)}
                           placeholder={lang === 'zh' ? '模板名称' : 'Template name'}
-                          className="w-full px-3 py-2.5 rounded-lg border bg-background text-sm min-h-[2.75rem]"
+                          className="w-full px-3 py-2.5 rounded-xl border border-white/10 bg-white/[0.02] text-sm text-slate-100 placeholder:text-slate-500 min-h-[2.75rem] focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                           autoFocus
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') handleAddPrompt();
@@ -267,7 +267,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="w-full mt-4 justify-start text-muted-foreground hover:text-foreground min-h-[2.75rem]"
+                        className="w-full mt-4 justify-start text-slate-400 hover:text-slate-200 min-h-[2.75rem]"
                         onClick={() => setIsAdding(true)}
                       >
                         <Plus className="w-4 h-4 mr-2" />
@@ -296,7 +296,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                         lang={lang}
                       />
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                      <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
                         {lang === 'zh' ? '请选择一个提示词模板' : 'Please select a prompt template'}
                       </div>
                     )}
@@ -320,10 +320,10 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                               key={prompt.id}
                               onClick={() => handleSelectPrompt(prompt)}
                               className={cn(
-                                'w-full flex items-center justify-between gap-2 px-4 py-3.5 rounded-lg text-left transition-colors group min-h-[3rem]',
+                                'w-full flex items-center justify-between gap-2 px-4 py-3.5 rounded-xl text-left transition-colors group min-h-[3rem]',
                                 selectedPromptId === prompt.id
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'hover:bg-accent text-foreground'
+                                  ? 'bg-gradient-to-br from-primary-500 to-primary-600 text-white shadow-lg shadow-primary-500/20'
+                                  : 'hover:bg-white/[0.06] text-slate-200'
                               )}
                             >
                               <div className="flex flex-col items-start min-w-0 flex-1">
@@ -351,7 +351,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                               value={newPromptName}
                               onChange={(e) => setNewPromptName(e.target.value)}
                               placeholder={lang === 'zh' ? '模板名称' : 'Template name'}
-                              className="w-full px-4 py-3 rounded-lg border bg-background min-h-[3rem]"
+                              className="w-full px-4 py-3 rounded-xl border border-white/10 bg-white/[0.02] min-h-[3rem] text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') handleAddPrompt();
@@ -372,7 +372,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="w-full mt-4 justify-start text-muted-foreground hover:text-foreground min-h-[3rem]"
+                            className="w-full mt-4 justify-start text-slate-400 hover:text-slate-200 min-h-[3rem]"
                             onClick={() => setIsAdding(true)}
                           >
                             <Plus className="w-5 h-5 mr-2" />
@@ -388,7 +388,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                         exit={{ opacity: 0, x: 20 }}
                         className="flex-1 flex flex-col overflow-hidden"
                       >
-                        <div className="flex items-center gap-2 p-3 border-b shrink-0">
+                        <div className="flex items-center gap-2 p-3 border-b border-white/10 shrink-0">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -397,7 +397,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                           >
                             <ChevronLeft className="w-5 h-5" />
                           </Button>
-                          <span className="font-medium truncate flex-1">{editedName}</span>
+                          <span className="font-medium truncate flex-1 text-slate-100">{editedName}</span>
                         </div>
 
                         {selectedPromptId && (
@@ -482,7 +482,7 @@ function EditorContent({
                 type="text"
                 value={editedName}
                 onChange={(e) => setEditedName(e.target.value)}
-                className="px-2 py-1.5 rounded border bg-background text-sm font-medium flex-1 min-h-[2.5rem]"
+                className="px-2 py-1.5 rounded-xl border border-white/10 bg-white/[0.02] text-sm font-medium flex-1 min-h-[2.5rem] text-slate-100 focus:outline-none focus:ring-2 focus:ring-primary-500/50"
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') handleSaveName();
@@ -500,13 +500,13 @@ function EditorContent({
             </div>
           ) : (
             <div className="flex items-center gap-2 min-w-0">
-              <h3 className={cn("font-medium truncate", isMobile ? "text-base" : "text-lg")}>
+              <h3 className={cn("font-medium truncate text-slate-100", isMobile ? "text-base" : "text-lg")}>
                 {editedName}
               </h3>
               {!isMobile && (
                 <button
                   onClick={() => setIsEditingName(true)}
-                  className="p-1 hover:bg-accent rounded text-muted-foreground hover:text-foreground min-h-[2rem] min-w-[2rem]"
+                  className="p-1 hover:bg-white/[0.06] rounded-xl text-slate-400 hover:text-slate-200 min-h-[2rem] min-w-[2rem]"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
@@ -558,12 +558,12 @@ function EditorContent({
         value={editedContent}
         onChange={(e) => setEditedContent(e.target.value)}
         className={cn(
-          "flex-1 w-full p-4 rounded-lg border bg-background resize-none text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary overflow-y-auto",
+          "flex-1 w-full p-4 rounded-2xl border border-white/10 bg-white/[0.02] resize-none text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary-500/50 overflow-y-auto text-slate-100 placeholder:text-slate-500",
           isMobile && "border-x-0 rounded-none"
         )}
         placeholder={lang === 'zh' ? '输入提示词内容...' : 'Enter prompt content...'}
       />
-      <p className={cn("text-xs text-muted-foreground shrink-0", isMobile ? "px-3 py-2" : "mt-2")}>
+      <p className={cn("text-xs text-slate-400 shrink-0", isMobile ? "px-3 py-2" : "mt-2")}>
         {lang === 'zh'
           ? '提示词会自动保存到本地存储中'
           : 'Prompts are automatically saved to local storage'}

@@ -17,7 +17,7 @@ import { PromptSettingsModal } from './PromptSettingsModal';
 type Tab = 'recordings' | 'stats';
 
 export function App() {
-  const { t } = useApp();
+  const { t, lang } = useApp();
   const [tab, setTab] = useState<Tab>('recordings');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showPromptSettings, setShowPromptSettings] = useState(false);
@@ -37,14 +37,14 @@ export function App() {
       <SignedIn>
         <div className="min-h-screen flex flex-col">
           {/* Header */}
-          <header className="sticky top-0 z-40 backdrop-blur-lg bg-background/80 border-b">
+          <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-md border-b">
             <div className="max-w-2xl mx-auto px-4 py-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center">
-                    <Mic className="w-4 h-4 text-primary-foreground" />
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+                    <Mic className="w-5 h-5 text-primary-foreground" />
                   </div>
-                  <h1 className="text-lg font-semibold tracking-tight">
+                  <h1 className={`text-lg font-semibold ${lang === 'en' ? 'tracking-tight' : ''}`}>
                     {t('app.title')}
                   </h1>
                 </div>
@@ -64,13 +64,13 @@ export function App() {
               <Recorder onUploadComplete={refresh} />
 
               {/* Tab Navigation */}
-              <div className="flex bg-muted rounded-lg p-1">
+              <div className="flex bg-muted rounded-xl p-1">
                 {tabs.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => setTab(t.id)}
                     className={
-                      'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-medium transition-all min-h-[2.75rem] ' +
+                      'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all ' +
                       (tab === t.id
                         ? 'bg-background text-foreground shadow-sm'
                         : 'text-muted-foreground hover:text-foreground')
@@ -83,23 +83,13 @@ export function App() {
               </div>
 
               {/* Tab Content */}
-              <div className="grid grid-cols-1">
-                <div
-                  className={
-                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
-                    (tab === 'recordings' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
-                  }
-                >
+              <div>
+                {tab === 'recordings' && (
                   <RecordingList refreshTrigger={refreshTrigger} onRefresh={refresh} />
-                </div>
-                <div
-                  className={
-                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
-                    (tab === 'stats' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
-                  }
-                >
+                )}
+                {tab === 'stats' && (
                   <StatsChart refreshTrigger={refreshTrigger} />
-                </div>
+                )}
               </div>
             </div>
           </main>

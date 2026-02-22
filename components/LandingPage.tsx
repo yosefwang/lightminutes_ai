@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Mic, FileText, Cloud, Zap, CheckCircle2, Globe } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { Button } from './ui/button';
@@ -42,7 +41,7 @@ export function LandingPage() {
   const { lang, toggleLanguage } = useApp();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-accent/30">
+    <div className="min-h-screen">
       {/* Header with Language Toggle */}
       <div className="absolute top-4 right-4 z-50">
         <Button variant="ghost" size="sm" onClick={toggleLanguage} className="flex items-center gap-2">
@@ -55,47 +54,22 @@ export function LandingPage() {
 
       <div className="max-w-6xl mx-auto px-4 py-12">
         {/* Hero Section */}
-        <motion.header
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center mb-16 pt-8"
-        >
-          <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-xl mb-6"
-          >
+        <header className="text-center mb-16 pt-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary mb-6">
             <Mic className="w-10 h-10 text-primary-foreground" />
-          </motion.div>
+          </div>
 
-          <motion.h1
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 bg-gradient-to-r from-foreground via-foreground to-muted-foreground bg-clip-text text-transparent"
-          >
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4">
             LiteMinute AI
-          </motion.h1>
+          </h1>
 
-          <motion.p
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-            className="text-xl sm:text-2xl text-muted-foreground mb-8"
-          >
+          <p className="text-xl sm:text-2xl text-muted-foreground mb-8">
             {lang === 'zh' ? '语音转文字与智能摘要' : 'Speech to Text & Smart Summary'}
-          </motion.p>
+          </p>
 
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <SignUpButton mode="modal">
-              <Button size="lg" className="text-lg px-8 py-6 shadow-lg hover:shadow-xl transition-all">
+              <Button size="lg" className="text-lg px-8 py-6">
                 {lang === 'zh' ? '免费开始' : 'Get Started Free'}
               </Button>
             </SignUpButton>
@@ -104,47 +78,30 @@ export function LandingPage() {
                 {lang === 'zh' ? '登录' : 'Sign In'}
               </Button>
             </SignInButton>
-          </motion.div>
-        </motion.header>
+          </div>
+        </header>
 
         {/* Features */}
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-16">
           {features.map((feature, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <Card className="h-full hover:shadow-lg transition-shadow">
-                <CardContent className="p-8">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                    <feature.icon className="w-6 h-6 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2">
-                    {lang === 'zh' ? feature.titleZh : feature.titleEn}
-                  </h3>
-                  <p className="text-muted-foreground">
-                    {lang === 'zh' ? feature.descZh : feature.descEn}
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <Card key={i} className="h-full">
+              <CardContent className="p-8">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                  <feature.icon className="w-6 h-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">
+                  {lang === 'zh' ? feature.titleZh : feature.titleEn}
+                </h3>
+                <p className="text-muted-foreground">
+                  {lang === 'zh' ? feature.descZh : feature.descEn}
+                </p>
+              </CardContent>
+            </Card>
           ))}
-        </motion.div>
+        </div>
 
         {/* Trust Indicators */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 1.1, ease: [0.22, 1, 0.36, 1] }}
-          className="text-center"
-        >
+        <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             <span className="text-sm font-medium text-emerald-600 dark:text-emerald-400">
@@ -154,7 +111,7 @@ export function LandingPage() {
           <p className="text-sm text-muted-foreground">
             {lang === 'zh' ? '使用Clerk提供专业的身份验证' : 'Professional authentication powered by Clerk'}
           </p>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

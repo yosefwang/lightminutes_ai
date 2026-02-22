@@ -163,12 +163,12 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     <div className={cn('flex items-center gap-2 sm:gap-3 w-full', className)}>
       <button
         onClick={onPlayPause}
-        className="flex-shrink-0 w-11 h-11 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors shadow-sm min-h-[2.75rem] min-w-[2.75rem] active:scale-[0.97]"
+        className="flex-shrink-0 w-10 h-10 sm:w-10 sm:h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center hover:bg-primary/90 transition-colors"
       >
         {isPlaying ? (
-          <Pause className="w-5.5 h-5.5 sm:w-5 sm:h-5 fill-current" />
+          <Pause className="w-5 h-5 fill-current" />
         ) : (
-          <Play className="w-5.5 h-5.5 sm:w-5 sm:h-5 fill-current ml-0.5" />
+          <Play className="w-5 h-5 fill-current ml-0.5" />
         )}
       </button>
 
@@ -187,10 +187,10 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
             onTouchEnd={validDuration > 0 ? handleSeekEnd : undefined}
             disabled={validDuration <= 0}
             className={cn(
-              "w-full h-2.5 sm:h-2 rounded-lg appearance-none accent-primary touch-none",
+              "w-full h-2 rounded-lg appearance-none cursor-pointer",
               validDuration > 0
-                ? "bg-muted cursor-pointer"
-                : "bg-muted/50 cursor-not-allowed"
+                ? "accent-primary"
+                : "cursor-not-allowed"
             )}
             style={{
               background: validDuration > 0
@@ -207,12 +207,12 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
 
       <button
         onClick={() => setIsMuted(!isMuted)}
-        className="flex-shrink-0 p-2.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors min-h-[2.75rem] min-w-[2.75rem] active:scale-[0.97]"
+        className="flex-shrink-0 p-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         {isMuted ? (
-          <VolumeX className="w-5.5 h-5.5 sm:w-5 sm:h-5" />
+          <VolumeX className="w-5 h-5" />
         ) : (
-          <Volume2 className="w-5.5 h-5.5 sm:w-5 sm:h-5" />
+          <Volume2 className="w-5 h-5" />
         )}
       </button>
     </div>

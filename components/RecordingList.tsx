@@ -14,16 +14,20 @@ import {
   Trash,
   Tag,
   RefreshCw,
+  Cloud,
+  CloudOff,
+  CheckCircle2,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { usePromptSettings } from '@/contexts/PromptSettingsContext';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { AudioPlayer } from './AudioPlayer';
+import { cn } from '@/lib/utils';
 
 export type SummaryLanguage = 'zh' | 'en' | 'bilingual';
+export type CloudStatus = 'not_uploaded' | 'uploading' | 'uploaded' | 'deleting';
 
 export interface Recording {
   id: string;
@@ -36,35 +40,15 @@ export interface Recording {
   createdAt: number;
   tags: string[];
   summaryLanguage: SummaryLanguage;
+  cloudStatus: CloudStatus;
+  cloudKey: string | null;
+  cloudUrl: string | null;
 }
 
 interface RecordingListProps {
   refreshTrigger?: number;
   onRefresh?: () => void;
 }
-
-const containerVariants: any = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-    },
-  },
-};
-
-const itemVariants: any = {
-  hidden: { opacity: 0, y: 10, scale: 0.98 },
-  show: {
-    opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: {
-      duration: 0.4,
-      ease: [0.22, 1, 0.36, 1]
-    }
-  },
-};
 
 export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListProps) {
   const { t, lang } = useApp();
@@ -243,6 +227,30 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     }
   };
 
+  const getCloudStatusIcon = (cloudStatus: CloudStatus) => {
+    switch (cloudStatus) {
+      case 'uploaded':
+        return <CheckCircle2 className="w-3.5 h-3.5" />;
+      case 'uploading':
+        return <Loader2 className="w-3.5 h-3.5 animate-spin" />;
+      case 'not_uploaded':
+      default:
+        return <CloudOff className="w-3.5 h-3.5" />;
+    }
+  };
+
+  const getCloudStatusLabel = (cloudStatus: CloudStatus, lang: string) => {
+    switch (cloudStatus) {
+      case 'uploaded':
+        return lang === 'zh' ? '已同步云端' : 'Synced';
+      case 'uploading':
+        return lang === 'zh' ? '同步中...' : 'Syncing...';
+      case 'not_uploaded':
+      default:
+        return lang === 'zh' ? '未同步' : 'Not Synced';
+    }
+  };
+
   const renderMarkdown = (markdown: string) => {
     return markdown
       .replace(/^### (.*$)/gim, '<h3 class="text-sm font-semibold mt-3 mb-1.5">$1</h3>')
@@ -265,12 +273,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
 
   if (recordings.length === 0) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-        className="text-center py-12"
-      >
+      <div className="text-center py-12">
         <FileText className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
         <h3 className="text-lg font-medium text-foreground">
           {t('history.empty')}
@@ -278,7 +281,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
         <p className="text-muted-foreground mt-2">
           {t('history.emptyDesc')}
         </p>
-      </motion.div>
+      </div>
     );
   }
 
@@ -302,246 +305,215 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
         </Button>
       </div>
 
-      <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-        className="space-y-3"
-        layout
-      >
-        <AnimatePresence mode="popLayout">
-          {recordings.map((recording) => {
-            const isPlaying = playingId === recording.id;
-            const isExpanded = expandedId === recording.id;
-            const regenState = regenerationState[recording.id] || 'idle';
-            const isProcessing = recording.status === 'processing' || regenState === 'regenerating';
+      <div className="space-y-3">
+        {recordings.map((recording) => {
+          const isPlaying = playingId === recording.id;
+          const isExpanded = expandedId === recording.id;
+          const regenState = regenerationState[recording.id] || 'idle';
+          const isProcessing = recording.status === 'processing' || regenState === 'regenerating';
 
-            return (
-              <motion.div
-                key={recording.id}
-                variants={itemVariants}
-                layout
-                initial="hidden"
-                animate="show"
-                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+          return (
+            <Card key={recording.id} className="overflow-hidden">
+              <CardHeader
+                className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={() => setExpandedId(isExpanded ? null : recording.id)}
               >
-                <Card className="overflow-hidden">
-                  <CardHeader
-                    className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                    onClick={() => setExpandedId(isExpanded ? null : recording.id)}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-2">
-                          <h3 className="font-medium truncate">{recording.title}</h3>
-                          <Badge variant={getStatusVariant(recording.status)}>
-                            {t(`status.${recording.status}`)}
-                          </Badge>
-                        </div>
-
-                        {recording.tags.length > 0 && (
-                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                            <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                            {recording.tags.slice(0, 3).map((tag, i) => (
-                              <Badge key={i} variant="outline" className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {recording.tags.length > 3 && (
-                              <span className="text-xs text-muted-foreground">+{recording.tags.length - 3}</span>
-                            )}
-                          </div>
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <h3 className="font-medium truncate">{recording.title}</h3>
+                      <Badge variant={getStatusVariant(recording.status)}>
+                        {t(`status.${recording.status}`)}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "flex items-center gap-1",
+                          recording.cloudStatus === 'uploaded' && "border-emerald-500/50 text-emerald-600 dark:text-emerald-400",
+                          recording.cloudStatus === 'uploading' && "border-blue-500/50 text-blue-600 dark:text-blue-400",
+                          recording.cloudStatus === 'not_uploaded' && "text-muted-foreground"
                         )}
+                      >
+                        {getCloudStatusIcon(recording.cloudStatus)}
+                        {getCloudStatusLabel(recording.cloudStatus, lang)}
+                      </Badge>
+                    </div>
 
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(recording.createdAt)}</span>
-                          </div>
-                          {recording.duration && (
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>{formatDuration(recording.duration)}</span>
-                            </div>
-                          )}
-                        </div>
+                    {recording.tags.length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                        <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                        {recording.tags.slice(0, 3).map((tag, i) => (
+                          <Badge key={i} variant="outline" className="text-xs">
+                            {tag}
+                          </Badge>
+                        ))}
+                        {recording.tags.length > 3 && (
+                          <span className="text-xs text-muted-foreground">+{recording.tags.length - 3}</span>
+                        )}
                       </div>
+                    )}
 
-                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        <span>{formatDate(recording.createdAt)}</span>
+                      </div>
+                      {recording.duration && (
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-4 h-4" />
+                          <span>{formatDuration(recording.duration)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1 ml-2 shrink-0">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteRecording(recording.id);
+                      }}
+                      className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      title={t('history.delete')}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </Button>
+
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-muted-foreground" />
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+
+              {isExpanded && (
+                <CardContent className="pt-0 space-y-4">
+                  <AudioPlayer
+                    audioPath={recording.audioPath}
+                    duration={recording.duration}
+                    isPlaying={isPlaying}
+                    onPlayPause={() => handlePlayPause(recording.id)}
+                    className="py-2"
+                  />
+
+                  {recording.status === 'completed' && (
+                    <div className="flex items-center justify-between gap-3 pb-3 border-b">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">
+                          {lang === 'zh' ? '当前模板：' : 'Current template:'}
+                        </span>
+                        <span className="text-sm font-medium">
+                          {getActiveSummaryPrompt().name}
+                        </span>
+                      </div>
+                      <Button
+                        variant={regenState === 'completed' ? 'default' : 'secondary'}
+                        size="sm"
+                        onClick={() => regenerateSummary(recording.id, getActiveSummaryPrompt().content)}
+                        disabled={isProcessing}
+                      >
+                        {isProcessing ? (
+                          <span className="flex items-center gap-1">
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            <span>{lang === 'zh' ? '正在重新生成...' : 'Regenerating...'}</span>
+                          </span>
+                        ) : regenState === 'completed' ? (
+                          <span className="flex items-center gap-1">
+                            <Check className="w-3 h-3" />
+                            <span>{lang === 'zh' ? '已完成' : 'Completed'}</span>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1">
+                            <RefreshCw className="w-3 h-3" />
+                            <span>{lang === 'zh' ? '重新生成' : 'Regenerate'}</span>
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  )}
+
+                  {recording.summary && (
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-primary">
+                          {t('summary.title')}
+                        </h4>
                         <Button
                           variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteRecording(recording.id);
-                          }}
-                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                          title={t('history.delete')}
+                          size="sm"
+                          onClick={() => copyToClipboard(recording.summary!, recording.id)}
+                          className="text-muted-foreground hover:text-foreground"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          {copiedId === recording.id ? (
+                            <>
+                              <Check className="w-4 h-4 text-emerald-500 mr-1.5" />
+                              <span>{t('history.copied')}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4 mr-1.5" />
+                              <span>{t('history.copy')}</span>
+                            </>
+                          )}
                         </Button>
-
-                        {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                        )}
                       </div>
+                      <div
+                        className="prose prose-sm dark:prose-invert bg-muted/30 rounded-lg p-4 text-sm text-foreground"
+                        dangerouslySetInnerHTML={{
+                          __html: renderMarkdown(recording.summary),
+                        }}
+                      />
                     </div>
-                  </CardHeader>
+                  )}
 
-                  <AnimatePresence>
-                    {isExpanded && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  {recording.status === 'processing' && !recording.summary && (
+                    <div className="flex items-center gap-2 text-primary">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>{t('summary.generating')}</span>
+                    </div>
+                  )}
+
+                  {recording.transcript && (
+                    <div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setShowTranscript((prev) => ({
+                            ...prev,
+                            [recording.id]: !prev[recording.id],
+                          }))
+                        }
+                        className="text-muted-foreground hover:text-foreground p-0 h-auto"
                       >
-                        <CardContent className="pt-0 space-y-4">
-                          <AudioPlayer
-                            audioPath={recording.audioPath}
-                            duration={recording.duration}
-                            isPlaying={isPlaying}
-                            onPlayPause={() => handlePlayPause(recording.id)}
-                            className="py-2"
-                          />
+                        {showTranscript[recording.id]
+                          ? t('history.hideTranscript')
+                          : t('history.showTranscript')}
+                      </Button>
+                      {showTranscript[recording.id] && (
+                        <div className="mt-2 bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground whitespace-pre-wrap">
+                          {recording.transcript}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                          {recording.status === 'completed' && (
-                            <div className="flex items-center justify-between gap-3 pb-3 border-b">
-                              <div className="flex items-center gap-2">
-                                <RefreshCw className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {lang === 'zh' ? '当前模板：' : 'Current template:'}
-                                </span>
-                                <span className="text-sm font-medium">
-                                  {getActiveSummaryPrompt().name}
-                                </span>
-                              </div>
-                              <Button
-                                variant={regenState === 'completed' ? 'default' : 'secondary'}
-                                size="sm"
-                                onClick={() => regenerateSummary(recording.id, getActiveSummaryPrompt().content)}
-                                disabled={isProcessing}
-                              >
-                                {isProcessing ? (
-                                  <span className="flex items-center gap-1">
-                                    <Loader2 className="w-3 h-3 animate-spin" />
-                                    <span>{lang === 'zh' ? '正在重新生成...' : 'Regenerating...'}</span>
-                                  </span>
-                                ) : regenState === 'completed' ? (
-                                  <span className="flex items-center gap-1">
-                                    <Check className="w-3 h-3" />
-                                    <span>{lang === 'zh' ? '已完成' : 'Completed'}</span>
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1">
-                                    <RefreshCw className="w-3 h-3" />
-                                    <span>{lang === 'zh' ? '重新生成' : 'Regenerate'}</span>
-                                  </span>
-                                )}
-                              </Button>
-                            </div>
-                          )}
-
-                          <AnimatePresence mode="wait">
-                            {recording.summary && (
-                              <motion.div
-                                key="summary"
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <h4 className="font-medium text-primary">
-                                      {t('summary.title')}
-                                    </h4>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => copyToClipboard(recording.summary!, recording.id)}
-                                      className="text-muted-foreground hover:text-foreground"
-                                    >
-                                      {copiedId === recording.id ? (
-                                        <>
-                                          <Check className="w-4 h-4 text-emerald-500 mr-1.5" />
-                                          <span>{t('history.copied')}</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <Copy className="w-4 h-4 mr-1.5" />
-                                          <span>{t('history.copy')}</span>
-                                        </>
-                                      )}
-                                    </Button>
-                                  </div>
-                                  <div
-                                    className="prose prose-sm dark:prose-invert bg-muted/30 rounded-lg p-4 text-sm text-foreground"
-                                    dangerouslySetInnerHTML={{
-                                      __html: renderMarkdown(recording.summary),
-                                    }}
-                                  />
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-
-                          {recording.status === 'processing' && !recording.summary && (
-                            <div className="flex items-center gap-2 text-primary">
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                              <span>{t('summary.generating')}</span>
-                            </div>
-                          )}
-
-                          <AnimatePresence>
-                            {recording.transcript && (
-                              <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.3 }}
-                              >
-                                <div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      setShowTranscript((prev) => ({
-                                        ...prev,
-                                        [recording.id]: !prev[recording.id],
-                                      }))
-                                    }
-                                    className="text-muted-foreground hover:text-foreground p-0 h-auto"
-                                  >
-                                    {showTranscript[recording.id]
-                                      ? t('history.hideTranscript')
-                                      : t('history.showTranscript')}
-                                  </Button>
-                                  {showTranscript[recording.id] && (
-                                    <div className="mt-2 bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground whitespace-pre-wrap">
-                                      {recording.transcript}
-                                    </div>
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-
-                          {!recording.summary && recording.status === 'completed' && (
-                            <p className="text-muted-foreground text-sm">
-                              {t('history.noSummary')}
-                            </p>
-                          )}
-                        </CardContent>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
+                  {!recording.summary && recording.status === 'completed' && (
+                    <p className="text-muted-foreground text-sm">
+                      {t('history.noSummary')}
+                    </p>
+                  )}
+                </CardContent>
+              )}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

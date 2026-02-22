@@ -47,6 +47,66 @@ function generateTags(recording: Recording): string[] {
   return tags;
 }
 
+// Upload audio file directly to R2 (streaming)
+export async function uploadAudioToR2(
+  recordingId: string,
+  audioBuffer: Buffer,
+  mimeType: string = 'audio/webm'
+): Promise<string> {
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
+
+  const ext = mimeType.includes('mp4') || mimeType.includes('m4a') ? 'm4a' : mimeType.includes('webm') ? 'webm' : 'webm';
+  const audioKey = `recordings/${recordingId}/audio.${ext}`;
+
+  await s3Client.send(new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: audioKey,
+    Body: audioBuffer,
+    ContentType: mimeType,
+  }));
+
+  return R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${audioKey}` : audioKey;
+}
+
+// Upload metadata JSON to R2
+export async function uploadMetadataToR2(
+  recording: Recording,
+  audioUrl?: string
+): Promise<string> {
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
+
+  const key = `recordings/${recording.id}/metadata.json`;
+  const tags = generateTags(recording);
+
+  const payload = {
+    id: recording.id,
+    title: recording.title,
+    duration: recording.duration,
+    createdAt: recording.createdAt,
+    timestamp: new Date().toISOString(),
+    tags,
+    transcript: recording.transcript,
+    summary: recording.summary,
+    status: recording.status,
+    audioUrl: audioUrl || null,
+  };
+
+  await s3Client.send(new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    Body: JSON.stringify(payload, null, 2),
+    ContentType: 'application/json',
+  }));
+
+  const url = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : key;
+  return url;
+}
+
+// Original function maintained for backwards compatibility
 export async function uploadToCloud(
   recording: Recording,
   audioBuffer: Buffer | null,
@@ -133,6 +193,13 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
 
   for (const obj of response.Contents) {
     if (!obj.Key) continue;
+    // Only get metadata.json files for the new format, or .json for old format
+    if (!obj.Key.endsWith('/metadata.json') && !obj.Key.endsWith('.json')) continue;
+    // Skip audio files
+    if (obj.Key.endsWith('.webm') || obj.Key.endsWith('.m4a') || obj.Key.endsWith('.mp3')) continue;
+    // Skip if it's in a subdirectory but not metadata.json
+    if (obj.Key.includes('/') && !obj.Key.endsWith('/metadata.json') && obj.Key.split('/').length > 2) continue;
+
     try {
       const getResult = await s3Client.send(
         new GetObjectCommand({
@@ -152,7 +219,7 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
           createdAt: data.createdAt,
           duration: data.duration,
           lastModified: obj.LastModified?.getTime(),
-          hasAudio: !!data.audioBase64,
+          hasAudio: !!data.audioBase64 || !!data.audioUrl,
           audioBase64: data.audioBase64,
           uploadOption: data.uploadOption || 'both',
         });

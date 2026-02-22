@@ -49,30 +49,8 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="zh-CN" suppressHydrationWarning>
-        <head>
-          <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-          <style>{`
-            * {
-              -webkit-tap-highlight-color: transparent;
-              -webkit-touch-callout: none;
-              -webkit-user-select: none;
-              user-select: none;
-            }
-            input, textarea {
-              -webkit-user-select: auto;
-              user-select: auto;
-            }
-            html, body, :root {
-              height: 100dvh;
-              height: 100vh;
-              min-height: 100dvh;
-              min-height: 100vh;
-              overscroll-behavior: none;
-            }
-          `}</style>
-        </head>
-        <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans`}>
+        <head />
+        <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans dark`}>
           {children}
         </body>
       </html>

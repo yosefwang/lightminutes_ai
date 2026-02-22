@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { Calendar, Clock, TrendingUp, Mic } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
@@ -98,8 +97,8 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
   // Status distribution for pie chart
   const statusData = [
     { name: t('status.completed'), value: recordings.filter((r) => r.status === 'completed').length, color: 'hsl(var(--primary))' },
-    { name: t('status.processing'), value: recordings.filter((r) => r.status === 'processing').length, color: 'hsl(217.2 32.6% 17.5%)' },
-    { name: t('status.failed'), value: recordings.filter((r) => r.status === 'failed').length, color: 'hsl(0 84.2% 60.2%)' },
+    { name: t('status.processing'), value: recordings.filter((r) => r.status === 'processing').length, color: 'hsl(var(--muted))' },
+    { name: t('status.failed'), value: recordings.filter((r) => r.status === 'failed').length, color: 'hsl(var(--destructive))' },
   ].filter((d) => d.value > 0);
 
   const formatDuration = (seconds: number) => {
@@ -121,12 +120,7 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
-      className="space-y-6"
-    >
+    <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid grid-cols-2 gap-4">
         <Card>
@@ -174,11 +168,11 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-primary" />
+              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">—</p>
+                <p className="text-2xl font-bold text-muted-foreground">—</p>
                 <p className="text-sm text-muted-foreground">Cloud Sync</p>
               </div>
             </div>
@@ -308,6 +302,6 @@ export function StatsChart({ refreshTrigger = 0 }: StatsChartProps) {
           <p className="text-muted-foreground mt-2">{t('stats.emptyDesc')}</p>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }
