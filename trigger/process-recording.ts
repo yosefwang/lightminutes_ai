@@ -1,4 +1,4 @@
-import { task, logger, retry } from '@trigger.dev/sdk/v3';
+import { task } from '@trigger.dev/sdk';
 import { transcribeAudio } from '@/lib/server/services/groq';
 import { generateSummary } from '@/lib/server/services/llm';
 import { downloadAudioFromR2, uploadMetadataToR2V2 } from '@/lib/server/services/r2';
@@ -6,6 +6,12 @@ import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 
 export const processRecording = task({
   id: 'process-recording',
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 1000,
+    maxTimeoutInMs: 10000,
+  },
   run: async (payload: {
     recordingId: string;
     userId: string;
@@ -15,7 +21,7 @@ export const processRecording = task({
   }) => {
     const { recordingId, userId, r2AudioKey, r2AudioUrl, summaryLanguage } = payload;
 
-    logger.info('Starting recording processing', { recordingId, userId });
+    console.log('Starting recording processing', { recordingId, userId });
 
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
@@ -28,21 +34,15 @@ export const processRecording = task({
         .eq('id', recordingId)
         .eq('user_id', userId);
 
-      logger.info('Downloading audio from R2', { r2AudioKey });
-      const audioBuffer = await retry.onThrow(() => downloadAudioFromR2(r2AudioKey), {
-        maxAttempts: 3,
-        minTimeoutInMs: 1000,
-      });
+      console.log('Downloading audio from R2', { r2AudioKey });
+      const audioBuffer = await downloadAudioFromR2(r2AudioKey);
 
-      logger.info('Starting transcription');
-      const transcript = await retry.onThrow(() => transcribeAudio(
+      console.log('Starting transcription');
+      const transcript = await transcribeAudio(
         audioBuffer,
         'audio/webm',
         summaryLanguage
-      ), {
-        maxAttempts: 3,
-        minTimeoutInMs: 1000,
-      });
+      );
 
       await supabaseAdmin
         .from('recordings')
@@ -50,16 +50,13 @@ export const processRecording = task({
         .eq('id', recordingId)
         .eq('user_id', userId);
 
-      logger.info('Transcription complete', { transcriptLength: transcript.length });
+      console.log('Transcription complete', { transcriptLength: transcript.length });
 
-      logger.info('Generating summary');
-      const summary = await retry.onThrow(() => generateSummary(
+      console.log('Generating summary');
+      const summary = await generateSummary(
         transcript,
         summaryLanguage
-      ), {
-        maxAttempts: 3,
-        minTimeoutInMs: 1000,
-      });
+      );
 
       const { data: recording } = await supabaseAdmin
         .from('recordings')
@@ -72,7 +69,7 @@ export const processRecording = task({
         throw new Error('Recording not found');
       }
 
-      logger.info('Uploading metadata to R2');
+      console.log('Uploading metadata to R2');
       const metadataUrl = await uploadMetadataToR2V2({
         id: recordingId,
         userId,
@@ -97,11 +94,11 @@ export const processRecording = task({
         .eq('id', recordingId)
         .eq('user_id', userId);
 
-      logger.info('Recording processing complete', { recordingId });
+      console.log('Recording processing complete', { recordingId });
 
       return { success: true, recordingId };
     } catch (error) {
-      logger.error('Recording processing failed', { error });
+      console.error('Recording processing failed', { error });
       try {
         if (isSupabaseConfigured && supabaseAdmin) {
           await supabaseAdmin
@@ -111,7 +108,7 @@ export const processRecording = task({
             .eq('user_id', userId);
         }
       } catch (updateError) {
-        logger.error('Failed to update status to failed', { updateError });
+        console.error('Failed to update status to failed', { updateError });
       }
       throw error;
     }
@@ -120,6 +117,12 @@ export const processRecording = task({
 
 export const regenerateSummary = task({
   id: 'regenerate-summary',
+  retry: {
+    maxAttempts: 3,
+    factor: 2,
+    minTimeoutInMs: 1000,
+    maxTimeoutInMs: 10000,
+  },
   run: async (payload: {
     recordingId: string;
     userId: string;
@@ -127,7 +130,7 @@ export const regenerateSummary = task({
   }) => {
     const { recordingId, userId, summaryLanguage } = payload;
 
-    logger.info('Starting summary regeneration', { recordingId, userId });
+    console.log('Starting summary regeneration', { recordingId, userId });
 
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
@@ -169,11 +172,11 @@ export const regenerateSummary = task({
         .eq('id', recordingId)
         .eq('user_id', userId);
 
-      logger.info('Summary regeneration complete', { recordingId });
+      console.log('Summary regeneration complete', { recordingId });
 
       return { success: true, recordingId };
     } catch (error) {
-      logger.error('Summary regeneration failed', { error });
+      console.error('Summary regeneration failed', { error });
       try {
         if (isSupabaseConfigured && supabaseAdmin) {
           await supabaseAdmin
@@ -183,7 +186,7 @@ export const regenerateSummary = task({
             .eq('user_id', userId);
         }
       } catch (updateError) {
-        logger.error('Failed to update status to failed', { updateError });
+        console.error('Failed to update status to failed', { updateError });
       }
       throw error;
     }

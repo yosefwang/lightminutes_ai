@@ -4,7 +4,7 @@ import { ulid } from 'ulid';
 import { v4 as uuidv4 } from 'uuid';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 import { createRecording as createLegacyRecording } from '@/lib/server/db';
-import { tasks } from '@trigger.dev/sdk/v3';
+import { tasks } from '@trigger.dev/sdk';
 
 export async function POST(request: Request) {
   try {

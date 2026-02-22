@@ -1,10 +1,10 @@
-import { defineConfig } from '@trigger.dev/sdk/v3';
+import { defineConfig } from '@trigger.dev/sdk';
 
 export default defineConfig({
-  project: 'lightminute-ai',
+  project: 'proj_djysjzfpwoqbjlvvkzge',
+  dirs: ['./trigger'],
   runtime: 'node',
   logLevel: 'info',
-  maxDuration: 300,
   retries: {
     enabledInDev: true,
     default: {
@@ -12,6 +12,13 @@ export default defineConfig({
       minTimeoutInMs: 1000,
       maxTimeoutInMs: 10000,
       factor: 2,
+      randomize: true,
     },
+  },
+  build: {
+    autoDetectExternal: true,
+    keepNames: true,
+    minify: false,
+    extensions: [],
   },
 });
