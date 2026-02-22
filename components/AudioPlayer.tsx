@@ -13,7 +13,6 @@ interface AudioPlayerProps {
   duration?: number | null;
 }
 
-// Format time to mm:ss
 const formatTime = (seconds: number): string => {
   if (!isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
@@ -21,7 +20,6 @@ const formatTime = (seconds: number): string => {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 };
 
-// Format remaining time as -mm:ss
 const formatRemainingTime = (seconds: number): string => {
   if (!isFinite(seconds) || seconds < 0) return '-0:00';
   const mins = Math.floor(seconds / 60);
@@ -45,33 +43,25 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     return audioPath || '';
   };
 
-  // Update duration when prop changes
   useEffect(() => {
     if (propDuration && propDuration > 0 && isFinite(propDuration)) {
       setDuration(propDuration);
     }
   }, [propDuration]);
 
-  // Initialize audio element
   useEffect(() => {
     const src = getAudioSrc();
     if (!src) return;
 
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.src = '';
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
     }
 
-    const audio = new Audio();
-    audioRef.current = audio;
+    const audio = audioRef.current;
 
-    // Use ref to track duration state within this effect
-    let localDuration = duration;
-
-    const updateDurationFromAudio = () => {
+    const handleLoadedMetadata = () => {
       if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
         setDuration(audio.duration);
-        localDuration = audio.duration;
       }
     };
 
@@ -79,9 +69,8 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
       if (!isDragging) {
         setCurrentTime(audio.currentTime || 0);
       }
-      // Also try to update duration on timeupdate in case metadata loaded late
-      if (localDuration === 0 || !isFinite(localDuration)) {
-        updateDurationFromAudio();
+      if (duration === 0 || !isFinite(duration)) {
+        handleLoadedMetadata();
       }
     };
 
@@ -90,39 +79,27 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
       setCurrentTime(0);
     };
 
-    // Add multiple events to catch duration loading
-    audio.addEventListener('loadedmetadata', updateDurationFromAudio);
-    audio.addEventListener('canplay', updateDurationFromAudio);
-    audio.addEventListener('durationchange', updateDurationFromAudio);
+    const handleCanPlay = () => {
+      handleLoadedMetadata();
+    };
+
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('canplay', handleCanPlay);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
 
-    audio.src = src;
-    audio.load();
-
-    // Fallback: if audio element has duration after loading, use it
-    setTimeout(() => {
-      updateDurationFromAudio();
-    }, 100);
-    setTimeout(() => {
-      updateDurationFromAudio();
-    }, 500);
-    setTimeout(() => {
-      updateDurationFromAudio();
-    }, 1000);
+    if (audio.src !== src) {
+      audio.src = src;
+    }
 
     return () => {
-      audio.removeEventListener('loadedmetadata', updateDurationFromAudio);
-      audio.removeEventListener('canplay', updateDurationFromAudio);
-      audio.removeEventListener('durationchange', updateDurationFromAudio);
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('canplay', handleCanPlay);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
-      audio.pause();
-      audio.src = '';
     };
-  }, [audioPath, audioBase64, onPlayPause]);
+  }, [audioPath, audioBase64, onPlayPause, duration]);
 
-  // Handle play/pause
   useEffect(() => {
     if (!audioRef.current) return;
 
@@ -133,7 +110,6 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     }
   }, [isPlaying]);
 
-  // Handle mute
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.muted = isMuted;
@@ -143,7 +119,6 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
     if (!isNaN(time)) {
-      // Clamp to valid range
       const validDuration = duration > 0 && isFinite(duration) ? duration : 0;
       const clampedTime = validDuration > 0 ? Math.max(0, Math.min(time, validDuration)) : 0;
       setDragTime(clampedTime);
@@ -167,7 +142,6 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     const target = e.target as HTMLInputElement;
     const time = parseFloat(target.value);
     if (audioRef.current && !isNaN(time)) {
-      // Clamp to valid range
       const validDuration = duration > 0 && isFinite(duration) ? duration : 0;
       const clampedTime = validDuration > 0 ? Math.max(0, Math.min(time, validDuration)) : 0;
       if (validDuration > 0) {

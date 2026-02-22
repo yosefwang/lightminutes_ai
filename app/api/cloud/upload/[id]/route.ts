@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server';
-import path from 'path';
-import { readFile } from 'fs/promises';
 import { getRecording, updateRecording } from '@/lib/server/db';
 import { uploadToCloud, isR2Configured } from '@/lib/server/services/r2';
 
@@ -21,17 +19,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     await updateRecording(id, { cloudStatus: 'uploading' });
 
-    const body = await request.json();
-    const uploadOption = body.uploadOption || 'both';
-
-    let audioBuffer: Buffer | null = null;
-    if (uploadOption !== 'summary') {
-      const audioPath = path.join(process.cwd(), 'uploads', path.basename(recording.audioPath));
-      audioBuffer = await readFile(audioPath);
+    let uploadOption = 'both' as 'audio' | 'summary' | 'both';
+    try {
+      const body = await request.json().catch(() => ({}));
+      if (body.uploadOption && ['audio', 'summary', 'both'].includes(body.uploadOption)) {
+        uploadOption = body.uploadOption;
+      }
+    } catch (e) {
+      // use default
     }
 
-    const cloudUrl = await uploadToCloud(recording, audioBuffer, uploadOption);
-    const cloudKey = `recording-${recording.id}.json`;
+    const cloudUrl = await uploadToCloud(recording, null, uploadOption);
+    const cloudKey = `recordings/${recording.id}.json`;
 
     await updateRecording(id, {
       cloudStatus: 'uploaded',

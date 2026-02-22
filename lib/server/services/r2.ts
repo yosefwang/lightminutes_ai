@@ -1,5 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
-import { promises as fs } from 'fs';
+import fs from 'fs';
 import path from 'path';
 import type { Recording } from '../db/schema';
 
@@ -27,19 +27,24 @@ export function isR2Configured(): boolean {
   return !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET_NAME);
 }
 
-function getS3Client() {
-  if (!isR2Configured()) {
-    throw new Error('R2 is not configured');
-  }
+const s3Client = isR2Configured() ? new S3Client({
+  region: 'auto',
+  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: R2_ACCESS_KEY_ID!,
+    secretAccessKey: R2_SECRET_ACCESS_KEY!,
+  },
+}) : null;
 
-  return new S3Client({
-    region: 'auto',
-    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: R2_ACCESS_KEY_ID!,
-      secretAccessKey: R2_SECRET_ACCESS_KEY!,
-    },
-  });
+function generateTags(recording: Recording): string[] {
+  const tags: string[] = ['recording'];
+  if (recording.status === 'completed') tags.push('completed');
+  if (recording.status === 'failed') tags.push('failed');
+  const date = new Date(recording.createdAt);
+  tags.push(`year:${date.getFullYear()}`);
+  tags.push(`month:${String(date.getMonth() + 1).padStart(2, '0')}`);
+  tags.push(`day:${String(date.getDate()).padStart(2, '0')}`);
+  return tags;
 }
 
 export async function uploadToCloud(
@@ -47,82 +52,76 @@ export async function uploadToCloud(
   audioBuffer: Buffer | null,
   uploadOption: 'audio' | 'summary' | 'both' = 'both'
 ): Promise<string> {
-  const client = getS3Client();
-  const key = `recording-${recording.id}.json`;
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
 
-  const cloudData: CloudRecording = {
-    key,
+  const key = `recordings/${recording.id}.json`;
+  const tags = generateTags(recording);
+
+  const payload: any = {
+    id: recording.id,
     title: recording.title,
-    summary: recording.summary || '',
-    transcript: recording.transcript || undefined,
-    tags: recording.tags,
+    duration: recording.duration,
     createdAt: recording.createdAt,
-    duration: recording.duration || undefined,
-    lastModified: Date.now(),
-    hasAudio: uploadOption !== 'summary' && !!audioBuffer,
+    timestamp: new Date().toISOString(),
+    tags,
     uploadOption,
   };
 
-  // Upload audio if requested
-  if (uploadOption !== 'summary' && audioBuffer) {
-    const audioKey = `audio-${recording.id}`;
-    await client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: audioKey,
-        Body: audioBuffer,
-        ContentType: 'audio/webm',
-      })
-    );
-    // Store base64 for backward compatibility
-    cloudData.audioBase64 = audioBuffer.toString('base64');
+  if (uploadOption === 'summary' || uploadOption === 'both') {
+    payload.transcript = recording.transcript;
+    payload.summary = recording.summary;
   }
 
-  // Upload metadata JSON
-  await client.send(
-    new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
-      Key: key,
-      Body: JSON.stringify(cloudData),
-      ContentType: 'application/json',
-    })
-  );
+  if (uploadOption === 'audio' || uploadOption === 'both') {
+    if (audioBuffer) {
+      payload.audioBase64 = audioBuffer.toString('base64');
+      payload.hasAudio = true;
+    } else {
+      // Fallback: read from file if buffer not provided
+      const audioPath = path.join(process.cwd(), 'uploads', path.basename(recording.audioPath));
+      if (fs.existsSync(audioPath)) {
+        const fileBuffer = fs.readFileSync(audioPath);
+        payload.audioBase64 = fileBuffer.toString('base64');
+        payload.hasAudio = true;
+      }
+    }
+  }
 
-  return R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : key;
+  await s3Client.send(new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    Body: JSON.stringify(payload, null, 2),
+    ContentType: 'application/json',
+  }));
+
+  const url = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : '';
+  return url;
 }
 
 export async function removeFromCloud(cloudKey: string): Promise<void> {
-  const client = getS3Client();
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
 
-  // Delete the metadata file
-  await client.send(
+  await s3Client.send(
     new DeleteObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: cloudKey,
     })
   );
-
-  // Also try to delete the audio file
-  try {
-    const audioKey = cloudKey.replace('recording-', 'audio-').replace('.json', '');
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: audioKey,
-      })
-    );
-  } catch {
-    // Ignore if audio file doesn't exist
-  }
 }
 
 export async function listCloudRecordings(): Promise<CloudRecording[]> {
-  const client = getS3Client();
+  if (!s3Client) {
+    return [];
+  }
 
-  const response = await client.send(
+  const response = await s3Client.send(
     new ListObjectsV2Command({
       Bucket: R2_BUCKET_NAME,
-      Prefix: 'recording-',
+      Prefix: 'recordings/',
     })
   );
 
@@ -133,27 +132,33 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
   }
 
   for (const obj of response.Contents) {
-    if (!obj.Key || !obj.Key.endsWith('.json')) continue;
-
+    if (!obj.Key) continue;
     try {
-      const getResponse = await client.send(
+      const getResult = await s3Client.send(
         new GetObjectCommand({
           Bucket: R2_BUCKET_NAME,
           Key: obj.Key,
         })
       );
-
-      if (getResponse.Body) {
-        const body = await getResponse.Body.transformToString();
-        const recording = JSON.parse(body) as CloudRecording;
+      const body = await getResult.Body?.transformToString();
+      if (body) {
+        const data = JSON.parse(body);
         recordings.push({
-          ...recording,
           key: obj.Key,
+          title: data.title,
+          summary: data.summary,
+          transcript: data.transcript,
+          tags: data.tags || [],
+          createdAt: data.createdAt,
+          duration: data.duration,
           lastModified: obj.LastModified?.getTime(),
+          hasAudio: !!data.audioBase64,
+          audioBase64: data.audioBase64,
+          uploadOption: data.uploadOption || 'both',
         });
       }
     } catch (e) {
-      console.error(`Failed to fetch ${obj.Key}:`, e);
+      console.error('Failed to fetch', obj.Key, e);
     }
   }
 
@@ -161,25 +166,14 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
 }
 
 export async function deleteCloudRecording(key: string): Promise<void> {
-  const client = getS3Client();
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
 
-  await client.send(
+  await s3Client.send(
     new DeleteObjectCommand({
       Bucket: R2_BUCKET_NAME,
       Key: key,
     })
   );
-
-  // Also delete associated audio file
-  try {
-    const audioKey = key.replace('recording-', 'audio-').replace('.json', '');
-    await client.send(
-      new DeleteObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: audioKey,
-      })
-    );
-  } catch {
-    // Ignore if audio doesn't exist
-  }
 }
