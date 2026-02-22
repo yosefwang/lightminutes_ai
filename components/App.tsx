@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
 import { Mic, HardDrive, Cloud, BarChart3 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Recorder } from './Recorder';
 import { RecordingList } from './RecordingList';
@@ -84,15 +85,30 @@ export function App() {
                 ))}
               </div>
 
-              {/* Tab Content - Render all, show/hide with CSS to avoid remounting */}
-              <div className="relative">
-                <div className={tab === 'local' ? 'block' : 'hidden'}>
+              {/* Tab Content - Render all, use CSS grid to stack, opacity for animations */}
+              <div className="grid grid-cols-1">
+                <div
+                  className={
+                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
+                    (tab === 'local' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
+                  }
+                >
                   <RecordingList refreshTrigger={refreshTrigger} onRefresh={refresh} />
                 </div>
-                <div className={tab === 'cloud' ? 'block' : 'hidden'}>
+                <div
+                  className={
+                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
+                    (tab === 'cloud' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
+                  }
+                >
                   <CloudTab refreshTrigger={refreshTrigger} />
                 </div>
-                <div className={tab === 'stats' ? 'block' : 'hidden'}>
+                <div
+                  className={
+                    'col-start-1 row-start-1 transition-opacity duration-200 ease-out ' +
+                    (tab === 'stats' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none')
+                  }
+                >
                   <StatsChart refreshTrigger={refreshTrigger} />
                 </div>
               </div>
