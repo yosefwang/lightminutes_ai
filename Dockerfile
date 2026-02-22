@@ -22,6 +22,9 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED 1
 
+# Set dummy values for build-time environment variables
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_dummy
+
 RUN npm run build
 
 # Production image, copy all the files and run next

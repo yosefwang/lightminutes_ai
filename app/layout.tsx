@@ -41,6 +41,9 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+// Make this route dynamic to prevent static prerendering with Clerk
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
