@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ulid } from 'ulid';
 import fs from 'fs';
@@ -57,6 +57,25 @@ export function getS3Client(): S3Client | null {
 export function isR2Configured(): boolean {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = getR2Config();
   return !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET_NAME);
+}
+
+// For debugging - log what's missing
+export function getR2ConfigStatus() {
+  const config = getR2Config();
+  const missing: string[] = [];
+  if (!config.R2_ACCOUNT_ID) missing.push('R2_ACCOUNT_ID');
+  if (!config.R2_ACCESS_KEY_ID) missing.push('R2_ACCESS_KEY_ID');
+  if (!config.R2_SECRET_ACCESS_KEY) missing.push('R2_SECRET_ACCESS_KEY');
+  if (!config.R2_BUCKET_NAME) missing.push('R2_BUCKET_NAME');
+  return {
+    isConfigured: isR2Configured(),
+    missing,
+    hasAccountId: !!config.R2_ACCOUNT_ID,
+    hasAccessKey: !!config.R2_ACCESS_KEY_ID,
+    hasSecretKey: !!config.R2_SECRET_ACCESS_KEY,
+    hasBucket: !!config.R2_BUCKET_NAME,
+    hasPublicUrl: !!config.R2_PUBLIC_URL,
+  };
 }
 
 function generateTags(recording: Recording): string[] {
@@ -427,5 +446,51 @@ export async function deleteFromR2(userId: string, recordingId: string): Promise
     );
   } catch (error) {
     console.error('R2 deletion error:', error);
+  }
+}
+
+/**
+ * Delete ALL of a user's recordings from R2
+ */
+export async function deleteAllFromR2(userId: string): Promise<void> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
+  if (!s3Client) {
+    return;
+  }
+
+  try {
+    // List all objects with the user's prefix
+    let continuationToken: string | undefined;
+    do {
+      const listResponse = await s3Client.send(
+        new ListObjectsV2Command({
+          Bucket: R2_BUCKET_NAME,
+          Prefix: `users/${userId}/`,
+          ContinuationToken: continuationToken,
+        })
+      );
+
+      if (listResponse.Contents && listResponse.Contents.length > 0) {
+        // Delete objects in batches (max 1000 per DeleteObjects request)
+        const objectsToDelete = listResponse.Contents.map((obj) => ({ Key: obj.Key! }));
+
+        // Use DeleteObjects for bulk deletion
+        await s3Client.send(
+          new DeleteObjectsCommand({
+            Bucket: R2_BUCKET_NAME,
+            Delete: {
+              Objects: objectsToDelete,
+              Quiet: true,
+            },
+          })
+        );
+      }
+
+      continuationToken = listResponse.NextContinuationToken;
+    } while (continuationToken);
+  } catch (error) {
+    console.error('R2 bulk deletion error:', error);
   }
 }

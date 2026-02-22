@@ -1,8 +1,17 @@
 import { task } from '@trigger.dev/sdk';
 import { transcribeAudio } from '@/lib/server/services/groq';
 import { generateSummary } from '@/lib/server/services/llm';
-import { downloadAudioFromR2, uploadMetadataToR2V2 } from '@/lib/server/services/r2';
-import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
+import { downloadAudioFromR2, uploadMetadataToR2V2, getR2ConfigStatus } from '@/lib/server/services/r2';
+import { isSupabaseConfigured, supabaseAdmin, getSupabaseConfigStatus } from '@/lib/server/supabase';
+
+function logEnvironmentStatus() {
+  console.log('=== Environment Configuration Status ===');
+  console.log('Supabase:', getSupabaseConfigStatus());
+  console.log('R2:', getR2ConfigStatus());
+  console.log('GROQ_API_KEY:', process.env.GROQ_API_KEY ? 'set' : 'not set');
+  console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? 'set' : 'not set');
+  console.log('========================================');
+}
 
 export const processRecording = task({
   id: 'process-recording',
@@ -22,11 +31,13 @@ export const processRecording = task({
   }) => {
     const { recordingId, userId, r2AudioKey, r2AudioUrl, summaryLanguage, promptTemplate } = payload;
 
+    logEnvironmentStatus();
     console.log('Starting recording processing', { recordingId, userId });
 
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
-        throw new Error('Supabase not configured');
+        const status = getSupabaseConfigStatus();
+        throw new Error(`Supabase not configured. Missing: ${status.missing.join(', ')}`);
       }
 
       await supabaseAdmin
@@ -133,11 +144,13 @@ export const regenerateSummary = task({
   }) => {
     const { recordingId, userId, summaryLanguage, promptTemplate } = payload;
 
+    logEnvironmentStatus();
     console.log('Starting summary regeneration', { recordingId, userId });
 
     try {
       if (!isSupabaseConfigured || !supabaseAdmin) {
-        throw new Error('Supabase not configured');
+        const status = getSupabaseConfigStatus();
+        throw new Error(`Supabase not configured. Missing: ${status.missing.join(', ')}`);
       }
 
       const { data: recording } = await supabaseAdmin

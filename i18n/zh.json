@@ -40,7 +40,7 @@
     "emptyDesc": "开始录音来创建第一条记录",
     "delete": "删除",
     "deleteConfirm": "确定要删除这条录音吗？",
-    "deleteAllConfirm": "确定要删除所有本地录音吗？此操作不可撤销。",
+    "deleteAllConfirm": "确定要删除所有录音吗？此操作不可撤销。",
     "deleteAll": "全部删除",
     "copied": "已复制到剪贴板",
     "copy": "复制",

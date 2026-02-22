@@ -13,6 +13,7 @@
 - [快速开始 / Quick Start](#快速开始--quick-start)
 - [技术架构 / Technical Architecture](#技术架构--technical-architecture)
 - [数据存储设计 / Data Storage Design](#数据存储设计--data-storage-design)
+- [音频处理架构 / Audio Processing Architecture](#音频处理架构--audio-processing-architecture)
 - [API 接口文档 / API Documentation](#api-接口文档--api-documentation)
 - [前端开发 / Frontend Development](#前端开发--frontend-development)
 - [后端开发 / Backend Development](#后端开发--backend-development)
@@ -32,11 +33,12 @@ LiteMinute AI 是一个极简、自控的语音转文字与摘要工具，采用
 **核心功能：**
 - 🔐 Clerk 身份验证（登录/注册/登出）
 - 🎤 移动端优先的录音界面
-- 📤 自动上传音频文件
+- 📤 两种音频上传方式：R2 直传或传统上传
 - 🤖 AI 语音转文字（Groq Whisper）
 - 📝 智能摘要生成（Claude / DeepSeek）
-- 💾 SQLite 本地持久化存储
-- ☁️ Cloudflare R2 云存储集成
+- 💾 双模式数据存储：SQLite 本地 + Supabase PostgreSQL
+- ☁️ Cloudflare R2 云存储集成，支持 Range 请求
+- ⚡ Trigger.dev 异步任务队列处理长音频
 - 📊 数据统计图表
 - ⚙️ 可自定义提示词模板系统
 - 🎨 5 种优雅配色主题（各有明暗模式）
@@ -50,11 +52,12 @@ LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization 
 **Core Features:**
 - 🔐 Clerk Authentication (Sign in/Sign up/Sign out)
 - 🎤 Mobile-first recording interface
-- 📤 Automatic audio file upload
+- 📤 Two audio upload methods: R2 direct upload or traditional upload
 - 🤖 AI speech-to-text (Groq Whisper)
 - 📝 Intelligent summary generation (Claude / DeepSeek)
-- 💾 SQLite local persistent storage
-- ☁️ Cloudflare R2 cloud storage integration
+- 💾 Dual-mode data storage: SQLite local + Supabase PostgreSQL
+- ☁️ Cloudflare R2 cloud storage integration with Range request support
+- ⚡ Trigger.dev async task queue for long audio processing
 - 📊 Data statistics charts
 - ⚙️ Customizable prompt template system
 - 🎨 5 elegant color themes (each with light/dark mode)
@@ -73,6 +76,8 @@ LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization 
 - Groq API Key
 - Anthropic API Key (可选 / Optional)
 - Cloudflare R2 凭证 (可选 / Optional)
+- Supabase 凭证 (可选 / Optional)
+- Trigger.dev 凭证 (可选 / Optional)
 
 ### 安装步骤 / Installation Steps
 
@@ -104,71 +109,30 @@ npm run dev
 lightminute_ai/
 ├── app/                          # Next.js App Router
 │   ├── api/                     # API 路由 / API Routes
-│   │   ├── upload/route.ts      # 上传音频 / Upload audio
-│   │   ├── process/[id]/route.ts # 处理录音 / Process recording
+│   │   ├── upload/route.ts      # 传统音频上传 / Legacy audio upload
+│   │   ├── process/[id]/route.ts # 处理录音（本地模式）
 │   │   ├── history/route.ts     # 历史记录 / History
 │   │   ├── recording/[id]/route.ts # 单个录音 / Single recording
 │   │   ├── recordings/all/route.ts # 删除所有 / Delete all
 │   │   ├── regenerate-summary/[id]/route.ts # 重新生成摘要
-│   │   ├── cloud/               # 云存储接口 / Cloud storage
-│   │   │   ├── upload/[id]/route.ts
-│   │   │   ├── delete/[id]/route.ts
-│   │   │   ├── list/route.ts
-│   │   │   └── record/[key]/route.ts
-│   │   └── health/route.ts      # 健康检查 / Health check
-│   ├── layout.tsx               # 根布局 / Root layout
-│   └── page.tsx                 # 首页 / Home page
+│   │   ├── r2/                  # R2 相关 API / R2 related APIs
+│   │   │   ├── presigned-url/route.ts # 预签名 URL
+│   │   │   └── audio/[...key]/route.ts # 音频代理
+│   │   └── recordings/route.ts  # 创建录音（Supabase模式）
 ├── components/                   # React 组件 / Components
-│   ├── ui/                      # UI 基础组件 / Base UI components
-│   │   ├── button.tsx
-│   │   ├── card.tsx
-│   │   └── badge.tsx
-│   ├── App.tsx                  # 主应用组件 / Main app component
-│   ├── LandingPage.tsx          # 登录页 / Landing page
-│   ├── UserMenu.tsx             # 用户菜单 / User menu
-│   ├── PromptSettingsModal.tsx  # 提示词设置 / Prompt settings
-│   ├── StatsChart.tsx           # 统计图表 / Stats charts
-│   ├── AudioPlayer.tsx          # 音频播放器 / Audio player
-│   ├── Recorder.tsx             # 录音组件 / Recorder
-│   ├── RecordingList.tsx        # 录音列表 / Recording list
-│   ├── CloudTab.tsx             # 云端标签 / Cloud tab
-│   ├── ThemeToggle.tsx          # 主题切换 / Theme toggle
-│   ├── LanguageToggle.tsx       # 语言切换 / Language toggle
-│   └── ColorThemePicker.tsx     # 配色选择 / Color theme picker
 ├── contexts/                     # React Contexts
-│   ├── AppContext.tsx           # 应用状态 / App state
-│   ├── ThemeColorContext.tsx    # 配色主题 / Color theme
-│   └── PromptSettingsContext.tsx # 提示词设置 / Prompt settings
 ├── hooks/                        # 自定义 Hooks / Custom Hooks
-│   ├── useLanguage.ts
-│   ├── useTheme.ts
-│   └── index.ts
 ├── i18n/                         # 国际化 / Internationalization
-│   ├── index.ts
-│   ├── zh.json
-│   └── en.json
 ├── lib/
 │   ├── server/                   # 服务端代码 / Server-side code
-│   │   ├── db/
-│   │   │   ├── index.ts         # SQLite DB 实现 / SQLite DB implementation
-│   │   │   └── schema.ts        # 类型定义 / Type definitions
-│   │   └── services/
-│   │       ├── groq.ts          # STT 服务 / Speech-to-Text
-│   │       ├── llm.ts           # 摘要服务 / Summarization
-│   │       └── r2.ts            # R2 云存储 / R2 cloud storage
-│   └── utils.ts                  # 工具函数 / Utilities
+│   │   ├── db/                  # 数据库操作 / Database operations
+│   │   ├── services/            # AI 和云存储服务 / AI & Cloud services
+│   │   └── supabase.ts          # Supabase 客户端
+├── trigger/                      # Trigger.dev 任务
 ├── data/                         # SQLite 数据库目录 / SQLite DB dir
 ├── uploads/                      # 音频文件上传目录 / Audio uploads dir
-├── middleware.ts                 # Clerk 中间件 / Clerk middleware
-├── next.config.ts                # Next.js 配置
-├── tailwind.config.ts            # Tailwind CSS 配置
-├── tsconfig.json                 # TypeScript 配置
-├── Dockerfile                    # Docker 镜像配置
-├── docker-compose.yml            # Docker Compose 配置
-├── .env.example                  # 环境变量示例
-├── README.md                     # 项目说明 / Project README
-├── DEVELOPMENT.md                # 本文档 / This document
-└── DEPLOYMENT.md                 # 部署指南 / Deployment guide
+├── trigger.config.ts             # Trigger.dev 配置
+└── ...
 ```
 
 ### 技术栈详情 / Tech Stack Details
@@ -176,14 +140,15 @@ lightminute_ai/
 | 层级 / Layer | 技术 / Technology | 说明 / Description |
 |-------------|------------------|-------------------|
 | 框架 / Framework | Next.js 15 | 全栈框架 / Full-stack framework |
-| 前端 / Frontend | React 18 | UI 框架 / Framework |
+| 前端 / Frontend | React 19 | UI 框架 / Framework |
 | | Tailwind CSS | 样式框架 / Styling |
 | | Framer Motion | 动画库 / Animations |
 | | Lucide React | 图标库 / Icons |
 | | Recharts | 图表库 / Charts |
 | | Clerk Next.js | 身份验证 / Authentication |
 | 后端 / Backend | Next.js Route Handlers | API 路由 / API routes |
-| 数据存储 / Data Storage | SQLite | 数据存储 / Storage |
+| 数据存储 / Data Storage | SQLite / Supabase | 数据存储 / Storage |
+| 异步任务 / Async Tasks | Trigger.dev v3 | 任务队列 / Task queue |
 | AI 服务 / AI Services | Groq Whisper | 语音转文字 / STT |
 | | Claude 3.5 Sonnet | 摘要生成 / Summarization |
 | 云存储 / Cloud Storage | Cloudflare R2 | S3 兼容存储 / S3-compatible storage |
@@ -191,6 +156,20 @@ lightminute_ai/
 ---
 
 ## 数据存储设计 / Data Storage Design
+
+### 双模式存储 / Dual-mode Storage
+
+系统支持两种存储模式，自动切换：
+
+1. **SQLite 本地模式** / SQLite Local Mode (默认)
+   - 使用 JSON 文件存储在 `data/db.json`
+   - 音频文件存储在 `uploads/` 目录
+   - 无需额外配置
+
+2. **Supabase PostgreSQL 模式** / Supabase PostgreSQL Mode (可选)
+   - 配置 Supabase 环境变量后自动启用
+   - 使用 Trigger.dev 异步处理录音
+   - 数据持久化，支持多设备同步
 
 ### 类型定义 / Type Definitions
 
@@ -224,6 +203,94 @@ export interface Recording {
 
 ---
 
+## 音频处理架构 / Audio Processing Architecture
+
+### 录音流程 / Recording Flow
+
+```
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  前端录音   │     │  获取预签名 URL    │     │  直传 R2        │
+│  Recorder   │────▶│  /api/r2/presigned │────▶│  (推荐)         │
+└─────────────┘     └─────────────────────┘     └─────────────────┘
+       │
+       │                    ┌─────────────────────┐
+       └───────────────────▶│  传统上传           │
+                            │  /api/upload         │
+                            └─────────────────────┘
+```
+
+### R2 直传流程 / R2 Direct Upload Flow (推荐)
+
+1. **前端请求预签名 URL** / Frontend requests presigned URL
+   ```
+   POST /api/r2/presigned-url
+   Body: { fileExtension: 'webm', mimeType: 'audio/webm' }
+   Response: { key, uploadUrl, publicUrl }
+   ```
+
+2. **前端直接上传到 R2** / Frontend uploads directly to R2
+   - 使用 fetch PUT 到 uploadUrl
+   - 不经过服务器，节省带宽
+
+3. **创建录音记录** / Create recording record
+   ```
+   POST /api/recordings
+   Body: { title, r2AudioKey, r2AudioUrl, duration, ... }
+   ```
+
+4. **触发异步处理** / Trigger async processing
+   - Supabase 模式：触发 Trigger.dev 任务
+   - 本地模式：调用 `/api/process/[id]`
+
+### 音频代理与 Range 请求 / Audio Proxy & Range Requests
+
+为了解决 R2 签名 URL 的跨域和过期问题，系统提供 API 代理：
+
+```typescript
+// app/api/r2/audio/[...key]/route.ts
+export async function GET(request: Request, { params }) {
+  const range = request.headers.get('range');
+
+  if (range) {
+    // 处理 Range 请求，支持音频流式播放
+    // Handle Range request for audio streaming
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+    return new NextResponse(stream, {
+      status: 206,
+      headers: {
+        'Content-Type': contentType,
+        'Content-Length': chunkSize.toString(),
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+      },
+    });
+  }
+}
+```
+
+### 长音频处理 / Long Audio Handling
+
+#### 转写限制 / Transcription Limits
+- Groq Whisper API：最大 25MB
+- 建议单条录音不超过 2 小时
+- 支持 WebM、M4A、WAV、MP3 格式
+
+#### 流式播放 / Streaming Playback
+- 音频播放器使用 HTML5 Audio Element
+- 通过 Range 请求分段加载
+- 无需下载整个文件即可播放
+- 进度条跳转时自动请求相应位置
+
+#### 异步处理 / Async Processing
+- 使用 Trigger.dev 处理长音频（最长 5 分钟）
+- 任务失败自动重试（最多 3 次）
+- 实时轮询更新处理状态
+
+---
+
 ## API 接口文档 / API Documentation
 
 ### 基础信息 / Base Info
@@ -231,17 +298,73 @@ export interface Recording {
 - Base URL: `http://localhost:3000`
 - Content-Type: `application/json` (except upload)
 
-### 1. 上传音频 / Upload Audio
+### 1. 获取 R2 预签名 URL / Get R2 Presigned URL
+
+**POST** `/api/r2/presigned-url`
+
+获取用于直接上传到 R2 的预签名 URL。
+
+**请求 / Request:**
+```json
+{
+  "fileExtension": "webm",
+  "mimeType": "audio/webm"
+}
+```
+
+**响应 / Response:**
+```json
+{
+  "key": "users/user_123/abc123/audio.webm",
+  "uploadUrl": "https://...",
+  "publicUrl": "https://..."
+}
+```
+
+---
+
+### 2. 创建录音（Supabase 模式）/ Create Recording (Supabase Mode)
+
+**POST** `/api/recordings`
+
+使用 R2 直传后，创建录音记录并触发处理。
+
+**请求 / Request:**
+```json
+{
+  "title": "会议录音",
+  "r2AudioKey": "users/user_123/abc123/audio.webm",
+  "r2AudioUrl": "https://...",
+  "duration": 120,
+  "summaryLanguage": "zh",
+  "tags": ["工作", "会议"],
+  "promptTemplate": "自定义提示词（可选）"
+}
+```
+
+**响应 / Response:**
+```json
+{
+  "id": "uuid_123",
+  "recording": { ... }
+}
+```
+
+---
+
+### 3. 传统音频上传 / Legacy Audio Upload
 
 **POST** `/api/upload`
 
-上传音频文件并创建记录。
+上传音频文件到服务器本地存储。
 
 **请求 / Request:**
 - Content-Type: `multipart/form-data`
 - Body:
   - `audio`: File - 音频文件 / Audio file
   - `duration`: number - 录音时长（秒）/ Duration in seconds
+  - `mimeType`: string - MIME 类型
+  - `language`: string - 摘要语言
 
 **响应 / Response:**
 ```json
@@ -252,100 +375,42 @@ export interface Recording {
 
 ---
 
-### 2. 处理录音 / Process Recording
+### 4. 处理录音（本地模式）/ Process Recording (Local Mode)
 
 **POST** `/api/process/:id`
 
-触发语音转文字和摘要生成。
-
-**路径参数 / Path Params:**
-- `id`: string - 录音 ID / Recording ID
-
-**响应 / Response:**
-```json
-{
-  "success": true,
-  "id": "ulid_1234567890"
-}
-```
+触发语音转文字和摘要生成（仅本地模式）。
 
 ---
 
-### 3. 获取历史记录 / Get History
+### 5. 获取历史记录 / Get History
 
 **GET** `/api/history`
 
 获取所有录音记录，按时间倒序。
 
-**响应 / Response:**
-```json
-[
-  {
-    "id": "ulid_1234567890",
-    "title": "新录音 2025-02-20T10:30:00.000Z",
-    "audioPath": "/uploads/xxx.webm",
-    "transcript": "这是转录的文字...",
-    "summary": "# 会议主题\n\n## 关键要点...",
-    "status": "completed",
-    "duration": 120,
-    "createdAt": 1739701800000,
-    "cloudStatus": "not_uploaded",
-    "cloudKey": null,
-    "cloudUrl": null,
-    "tags": [],
-    "summaryLanguage": "zh"
-  }
-]
-```
-
 ---
 
-### 4. 获取单个录音 / Get Single Recording
-
-**GET** `/api/recording/:id`
-
-获取单个录音详情。
-
-**响应 / Response:**
-```json
-{
-  "id": "ulid_1234567890",
-  "title": "新录音 2025-02-20T10:30:00.000Z",
-  "audioPath": "/uploads/xxx.webm",
-  "transcript": "这是转录的文字...",
-  "summary": "...",
-  "status": "completed",
-  "duration": 120,
-  "createdAt": 1739701800000
-}
-```
-
----
-
-### 5. 删除录音 / Delete Recording
+### 6. 删除单个录音 / Delete Single Recording
 
 **DELETE** `/api/recording/:id`
 
-删除录音记录及音频文件。
-
-**响应 / Response:**
-```json
-{
-  "success": true
-}
-```
+删除单个录音，同时删除 R2 文件（如果有）。
 
 ---
 
-### 6. 删除所有录音 / Delete All Recordings
+### 7. 删除所有录音 / Delete All Recordings
 
 **DELETE** `/api/recordings/all`
 
-删除所有本地录音记录及音频文件。
+删除当前用户的所有录音，包括：
+- Supabase 中的所有记录
+- R2 中的所有音频和元数据文件
+- 本地 SQLite 数据库记录
 
 ---
 
-### 7. 重新生成摘要 / Regenerate Summary
+### 8. 重新生成摘要 / Regenerate Summary
 
 **POST** `/api/regenerate-summary/:id`
 
@@ -354,18 +419,18 @@ export interface Recording {
 **请求体 / Request Body:**
 ```json
 {
-  "language": "zh" | "en" | "bilingual"
+  "language": "zh" | "en" | "bilingual",
+  "promptTemplate": "自定义提示词（可选）"
 }
 ```
 
 ---
 
-### 8. 云存储接口 / Cloud Storage Endpoints
+### 9. R2 音频代理 / R2 Audio Proxy
 
-- **POST** `/api/cloud/upload/:id` - 上传到云端 / Upload to cloud
-- **DELETE** `/api/cloud/delete/:id` - 从云端移除 / Remove from cloud
-- **GET** `/api/cloud/list` - 列出云端录音 / List cloud recordings
-- **DELETE** `/api/cloud/record/:key` - 删除云端录音 / Delete cloud recording
+**GET** `/api/r2/audio/[...key]`
+
+代理访问 R2 音频文件，支持 Range 请求。
 
 ---
 
@@ -380,120 +445,25 @@ NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 ```
 
-在 `app/layout.tsx` 中使用 `ClerkProvider` 包装应用：
-
-```typescript
-import { ClerkProvider } from '@clerk/nextjs';
-
-export default function RootLayout({ children }) {
-  return (
-    <ClerkProvider>
-      <html lang="zh-CN">
-        <body>{children}</body>
-      </html>
-    </ClerkProvider>
-  );
-}
-```
-
-使用 `SignedIn` 和 `SignedOut` 组件控制内容显示：
-
-```typescript
-import { SignedIn, SignedOut } from '@clerk/nextjs';
-
-<SignedOut>
-  <LandingPage />
-</SignedOut>
-<SignedIn>
-  <MainApp />
-</SignedIn>
-```
-
-### 国际化配置 / i18n Configuration
-
-```json
-// i18n/zh.json
-{
-  "app": {
-    "title": "LiteMinute AI",
-    "subtitle": "语音转文字与智能摘要"
-  },
-  "tabs": {
-    "local": "本地",
-    "cloud": "云端",
-    "stats": "统计"
-  },
-  "nav": {
-    "promptSettings": "提示词设置",
-    "signOut": "退出登录"
-  }
-}
-```
-
 ### 主题切换 / Theme Toggle
 
-使用 `useTheme` Hook 管理明暗模式：
-
-```typescript
-// hooks/useTheme.ts
-import { useState, useEffect } from 'react';
-
-type Theme = 'light' | 'dark';
-
-export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme');
-    return (saved as Theme) ||
-      (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  });
-
-  // 立即应用主题 / Apply theme immediately
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('theme', theme);
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-  }, [theme]);
-
-  return { theme, toggleTheme: () => setTheme(t => t === 'light' ? 'dark' : 'light') };
-}
-```
+使用 `useTheme` Hook 管理明暗模式，支持 MutationObserver 实时跟踪 DOM 变化。
 
 ### 配色主题系统 / Color Theme System
 
-使用 CSS 变量和 Context 管理动态配色：
-
-```typescript
-// 5 种配色主题 / 5 color themes
-type ColorTheme = 'ocean' | 'forest' | 'sunset' | 'lavender' | 'rose';
-```
-
-每种配色都支持明暗模式。
+使用 CSS 变量和 Context 管理动态配色，5 种配色主题：Ocean、Forest、Sunset、Lavender、Rose。
 
 ### 提示词设置系统 / Prompt Settings System
 
-使用 `localStorage` 快速、轻盈地存储提示词模板：
-
-```typescript
-interface PromptTemplate {
-  id: string;
-  name: string;
-  content: string;
-}
-```
-
-语言切换时自动更新提示词模板。
+使用 `localStorage` 快速、轻盈地存储提示词模板，支持自定义和语言切换自动更新。
 
 ### 音频播放器 / Audio Player
 
-修复后的音频播放器支持：
-- 拖拽进度条
-- 点击进度条跳转
+- 支持 Range 请求，流式播放长音频
+- 拖拽进度条和点击跳转
 - 播放状态与进度条同步
-- 音量控制
-- 静音切换
+- 音量控制和静音切换
+- R2 URL 自动通过代理访问
 
 ---
 
@@ -501,199 +471,73 @@ interface PromptTemplate {
 
 ### 环境变量 / Environment Variables
 
+完整列表请参考 `.env.example`。关键变量：
+
 ```env
-# .env
-# Clerk Authentication
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
+# Clerk (必需)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=
 
-# Groq API (STT - Speech to Text)
-GROQ_API_KEY=gsk_...
+# AI Services (必需)
+GROQ_API_KEY=
+ANTHROPIC_API_KEY=
 
-# Anthropic API (Summarization)
-ANTHROPIC_API_KEY=sk-ant_...
+# Supabase (可选)
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
 
-# STT Model Configuration
-GROQ_STT_MODEL=whisper-large-v3
-STT_LANGUAGE=zh
+# R2 (可选)
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET_NAME=
+R2_PUBLIC_URL=
 
-# LLM Model Configuration
-ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
-LLM_LANGUAGE=zh
-
-# Cloudflare R2 / S3 Configuration (Optional)
-R2_ACCOUNT_ID=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_BUCKET_NAME=...
-R2_PUBLIC_URL=...
+# Trigger.dev (可选)
+TRIGGER_SECRET_KEY=
+TRIGGER_API_KEY=
+NEXT_PUBLIC_TRIGGER_PUBLIC_KEY=
+TRIGGER_PROJECT_ID=
 ```
 
-### Groq STT 服务 / Groq STT Service
+### Trigger.dev 异步任务 / Trigger.dev Async Tasks
 
-```typescript
-// lib/server/services/groq.ts
-import Groq from 'groq-sdk';
+Trigger.dev 任务在 `trigger/process-recording.ts` 中定义：
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+- `process-recording`: 处理新录音（转写 + 摘要）
+- `regenerate-summary`: 重新生成摘要
 
-export async function transcribeAudio(audioPath: string): Promise<string> {
-  const file = fs.createReadStream(audioPath);
+任务启动时会记录环境配置状态，方便调试。
 
-  const response = await groq.audio.transcriptions.create({
-    file,
-    model: 'whisper-large-v3',
-  });
+### 删除操作 / Delete Operations
 
-  return response.text;
-}
-```
-
-### LLM 摘要服务 / LLM Summary Service
-
-```typescript
-// lib/server/services/llm.ts
-export async function generateSummary(
-  transcript: string,
-  language: 'zh' | 'en' | 'bilingual'
-): Promise<string> {
-  // 调用 Claude API
-  // Call Claude API
-}
-```
-
----
-
-## Clerk 身份验证 / Clerk Authentication
-
-### 1. 创建 Clerk 应用 / Create Clerk App
-
-1. 访问 [clerk.com](https://clerk.com) 并注册账号
-2. 创建新应用
-3. 在配置中启用 Email/Password 登录方式
-4. 复制 Publishable Key 和 Secret Key
-
-### 2. 中间件配置 / Middleware Configuration
-
-使用 `middleware.ts` 保护路由：
-
-```typescript
-import { clerkMiddleware } from '@clerk/nextjs/server';
-
-export default clerkMiddleware();
-
-export const config = {
-  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
-};
-```
-
-### 3. 主要组件 / Key Components
-
-- `LandingPage.tsx` - 包含 `SignInButton` 和 `SignUpButton`
-- `UserMenu.tsx` - 用户菜单，包含登出和提示词设置
-- `PromptSettingsModal.tsx` - 提示词设置对话框
-
----
-
-## 配色主题系统 / Color Theme System
-
-### 5 种配色主题 / 5 Color Themes
-
-| 主题 / Theme | 说明 / Description | 主色调 / Primary Color |
-|-------------|-------------------|---------------------|
-| Ocean | 海洋蓝 / Ocean Blue | 天蓝色 / Sky blue |
-| Forest | 森林绿 / Forest Green | 翠绿色 / Emerald green |
-| Sunset | 日落橙 / Sunset Orange | 暖橙色 / Warm orange |
-| Lavender | 薰衣草紫 / Lavender Purple | 淡紫色 / Soft purple |
-| Rose | 玫瑰红 / Rose Red | 玫红色 / Rose pink |
-
-### 实现原理 / Implementation
-
-使用 CSS 变量 + Tailwind CSS：
-
-```css
-:root {
-  --primary: 199.4 89.2% 48.4%; /* Ocean */
-  /* ... */
-}
-
-/* 通过 JavaScript 动态修改 / Dynamically modified via JavaScript */
-document.documentElement.style.setProperty('--primary', newValue);
-```
-
----
-
-## 提示词设置系统 / Prompt Settings System
-
-### 数据结构 / Data Structure
-
-```typescript
-interface PromptTemplate {
-  id: string;
-  name: string;
-  content: string;
-  type: 'transcribe' | 'summary';
-}
-
-// 默认提示词 / Default prompts
-const DEFAULT_PROMPTS_ZH = [...];
-const DEFAULT_PROMPTS_EN = [...];
-```
-
-### 存储方式 / Storage
-
-使用 `localStorage` 实现快速、轻盈的存储：
-
-```typescript
-// 保存 / Save
-localStorage.setItem('promptSettings', JSON.stringify(prompts));
-
-// 读取 / Load
-const saved = localStorage.getItem('promptSettings');
-```
-
-### 语言切换 / Language Switching
-
-当用户切换界面语言时，提示词模板会自动切换到对应语言的默认模板。
-
-### 扩展性 / Extensibility
-
-Schema 设计支持未来添加：
-- 更多提示词模板
-- 提示词分类
-- 提示词导入导出
-- 提示词分享
+删除操作会级联删除：
+1. R2 中的音频文件和元数据
+2. Supabase 或 SQLite 中的数据库记录
+3. 本地音频文件（如有）
 
 ---
 
 ## 部署指南 / Deployment Guide
 
-### Docker 部署 / Docker Deployment
-
 详细部署指南请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)。
-
-### 构建生产版本 / Build for Production
-
-```bash
-npm run build
-npm start
-```
 
 ---
 
 ## 开发清单 / Development Checklist
 
-- [x] 重构为 Next.js 15 全栈架构 / Refactor to Next.js 15 full-stack
-- [x] Clerk 身份验证集成 / Clerk authentication integration
-- [x] Landing page 设计 / Landing page design
-- [x] 主界面统计图表 / Stats charts in main interface
-- [x] 用户菜单下拉 / User menu dropdown
-- [x] 提示词设置功能 / Prompt settings feature
-- [x] 5 种配色主题 / 5 color themes
-- [x] 音频播放器修复 / Audio player fixes
-- [x] 语言切换时自动更新提示词 / Auto-update prompts on language switch
-- [x] 明暗主题立即生效 / Light/dark theme applies immediately
-- [x] 文档更新 / Documentation updates
+- [x] 重构为 Next.js 15 全栈架构
+- [x] Clerk 身份验证集成
+- [x] R2 预签名 URL 直传
+- [x] R2 音频代理 + Range 请求
+- [x] Supabase 双模式支持
+- [x] Trigger.dev 异步任务
+- [x] 提示词设置功能
+- [x] 5 种配色主题 + 明暗模式
+- [x] 长音频流式播放
+- [x] 级联删除（数据库 + R2）
+- [x] 中英文双语界面
 
 ---
 

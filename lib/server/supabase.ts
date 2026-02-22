@@ -6,6 +6,19 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 // Make Supabase optional for backward compatibility
 export const isSupabaseConfigured = !!(SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY);
 
+// For debugging - log what's missing
+export function getSupabaseConfigStatus() {
+  const missing: string[] = [];
+  if (!SUPABASE_URL) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+  if (!SUPABASE_SERVICE_ROLE_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+  return {
+    isConfigured: isSupabaseConfigured,
+    missing,
+    hasUrl: !!SUPABASE_URL,
+    hasServiceKey: !!SUPABASE_SERVICE_ROLE_KEY,
+  };
+}
+
 /**
  * Supabase admin client (service role) for server-side operations
  * Bypasses RLS - always enforce user_id checks in application code!

@@ -6,6 +6,9 @@ import { AppProvider } from '@/contexts/AppContext';
 import { PromptSettingsProvider } from '@/contexts/PromptSettingsContext';
 import { ThemeColorProvider } from '@/contexts/ThemeColorContext';
 
+// Get Clerk publishable key from environment
+const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || '';
+
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
@@ -53,7 +56,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+    >
       <html lang="zh-CN" suppressHydrationWarning>
         <head />
         <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans`}>

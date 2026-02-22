@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getRecording, deleteRecording as deleteRecordingFromDB } from '@/lib/server/db';
 import { getAuthUserId } from '@/lib/server/auth';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
+import { deleteFromR2, isR2Configured } from '@/lib/server/services/r2';
 
 // Convert Supabase recording to legacy format
 function convertToLegacyFormat(supabaseRecording: any): any {
@@ -52,6 +53,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const userId = await getAuthUserId();
+
+  // Delete from R2 first (if configured)
+  if (isR2Configured()) {
+    await deleteFromR2(userId, id);
+  }
 
   // Try Supabase first if configured
   if (isSupabaseConfigured && supabaseAdmin) {
