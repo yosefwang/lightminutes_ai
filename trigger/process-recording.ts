@@ -100,7 +100,22 @@ export const processRecording = task({
       logger.info('Recording processing complete', { recordingId });
 
       return { success: true, recordingId };
-    },
+    } catch (error) {
+      logger.error('Recording processing failed', { error });
+      try {
+        if (isSupabaseConfigured && supabaseAdmin) {
+          await supabaseAdmin
+            .from('recordings')
+            .update({ status: 'failed' })
+            .eq('id', recordingId)
+            .eq('user_id', userId);
+        }
+      } catch (updateError) {
+        logger.error('Failed to update status to failed', { updateError });
+      }
+      throw error;
+    }
+  },
 });
 
 export const regenerateSummary = task({
@@ -157,5 +172,20 @@ export const regenerateSummary = task({
       logger.info('Summary regeneration complete', { recordingId });
 
       return { success: true, recordingId };
-    },
+    } catch (error) {
+      logger.error('Summary regeneration failed', { error });
+      try {
+        if (isSupabaseConfigured && supabaseAdmin) {
+          await supabaseAdmin
+            .from('recordings')
+            .update({ status: 'failed' })
+            .eq('id', recordingId)
+            .eq('user_id', userId);
+        }
+      } catch (updateError) {
+        logger.error('Failed to update status to failed', { updateError });
+      }
+      throw error;
+    }
+  },
 });
