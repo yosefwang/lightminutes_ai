@@ -1,20 +1,50 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
 
 export function ThemeToggle() {
-  // Directly manipulate DOM for testing - bypass React state management
+  const [isDark, setIsDark] = useState(false);
+
+  // Check initial theme and set up listener
+  useEffect(() => {
+    const checkTheme = () => {
+      setIsDark(document.documentElement.classList.contains('dark'));
+    };
+
+    // Check on mount
+    checkTheme();
+
+    // Use MutationObserver to watch for class changes on html element
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.attributeName === 'class') {
+          checkTheme();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
+
   const toggleThemeDirect = () => {
-    const isDark = document.documentElement.classList.toggle('dark');
+    const willBeDark = !document.documentElement.classList.contains('dark');
+    if (willBeDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     try {
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      localStorage.setItem('theme', willBeDark ? 'dark' : 'light');
     } catch {}
   };
-
-  // Check current theme from DOM
-  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
 
   return (
     <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
