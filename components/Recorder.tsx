@@ -1,7 +1,16 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Mic, Square, Loader2, CheckCircle2, XCircle, AlertCircle, Settings, UploadCloud } from 'lucide-react';
+import {
+  Mic,
+  Square,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Settings,
+  UploadCloud,
+} from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
@@ -13,9 +22,6 @@ interface RecorderProps {
 
 type RecorderState = 'idle' | 'recording' | 'uploading' | 'success' | 'error' | 'permission-denied';
 
-const CHUNK_UPLOAD_THRESHOLD_SECONDS = 30;
-const CHUNK_UPLOAD_INTERVAL_MS = 30000;
-
 export function Recorder({ onUploadComplete }: RecorderProps) {
   const { t, lang } = useApp();
   const [state, setState] = useState<RecorderState>('idle');
@@ -25,13 +31,8 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const accumulatedChunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const chunkTimerRef = useRef<number | null>(null);
-  const sessionIdRef = useRef<string | null>(null);
-  const chunkIndexRef = useRef(0);
-  const lastUploadDurationRef = useRef(0);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -57,71 +58,20 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
     return 'm4a';
   };
 
-  const generateSessionId = () => {
-    return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  };
-
-  const uploadChunk = useCallback(async (isFinal: boolean = false) => {
-    if (accumulatedChunksRef.current.length === 0 && !isFinal) return;
-
-    const mimeType = getMimeType();
-    const ext = getExtension(mimeType);
-
-    if (!sessionIdRef.current) {
-      sessionIdRef.current = generateSessionId();
-    }
-
-    const blob = new Blob(accumulatedChunksRef.current, { type: mimeType });
-    accumulatedChunksRef.current = [];
-
-    const formData = new FormData();
-    formData.append('chunk', blob, `chunk_${chunkIndexRef.current}.${ext}`);
-    formData.append('sessionId', sessionIdRef.current);
-    formData.append('chunkIndex', chunkIndexRef.current.toString());
-    formData.append('duration', duration.toString());
-    formData.append('mimeType', mimeType);
-    formData.append('language', lang);
-    formData.append('ext', ext);
-    formData.append('isFinal', isFinal ? 'true' : 'false');
-
-    try {
-      const response = await fetch('/api/upload-chunk', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) throw new Error('Chunk upload failed');
-
-      const data = await response.json();
-      chunkIndexRef.current++;
-
-      if (data.completed && data.id) {
-        return data.id;
-      }
-    } catch (err) {
-      console.error('Chunk upload failed:', err);
-      // Don't fail the whole recording for chunk upload issues - we'll upload everything at the end
-    }
-
-    return null;
-  }, [duration, lang]);
-
   const startRecording = useCallback(async () => {
     try {
       setError(null);
       chunksRef.current = [];
-      accumulatedChunksRef.current = [];
-      sessionIdRef.current = null;
-      chunkIndexRef.current = 0;
-      lastUploadDurationRef.current = 0;
       setUploadProgress(0);
 
-      // Check for MediaRecorder support
       if (typeof MediaRecorder === 'undefined') {
-        throw new Error(lang === 'zh' ? '您的浏览器不支持录音功能，请使用最新版Chrome、Safari或Firefox' : 'Your browser doesn\'t support recording. Please use the latest Chrome, Safari, or Firefox.');
+        throw new Error(
+          lang === 'zh'
+            ? '您的浏览器不支持录音功能，请使用最新版Chrome、Safari或Firefox'
+            : 'Your browser doesn\'t support recording. Please use the latest Chrome, Safari, or Firefox.'
+        );
       }
 
-      // Check if mediaDevices is available - defensive check
       const mediaDevices = (navigator as any).mediaDevices;
       if (!mediaDevices || typeof mediaDevices.getUserMedia !== 'function') {
         const userAgent = (navigator as any).userAgent || '';
@@ -133,10 +83,13 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
               : 'Please access this website over HTTPS - iOS Safari requires HTTPS for microphone access'
           );
         }
-        throw new Error(lang === 'zh' ? '您的浏览器不支持录音功能，请使用最新版Chrome、Safari或Firefox' : 'Your browser doesn\'t support recording. Please use the latest Chrome, Safari, or Firefox.');
+        throw new Error(
+          lang === 'zh'
+            ? '您的浏览器不支持录音功能，请使用最新版Chrome、Safari或Firefox'
+            : 'Your browser doesn\'t support recording. Please use the latest Chrome, Safari, or Firefox.'
+        );
       }
 
-      // Use modern API
       const stream = await mediaDevices.getUserMedia({
         audio: true,
         video: false,
@@ -157,7 +110,6 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
       mediaRecorder.ondataavailable = (e) => {
         if (e.data && e.data.size > 0) {
           chunksRef.current.push(e.data);
-          accumulatedChunksRef.current.push(e.data);
         }
       };
 
@@ -168,20 +120,11 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
       timerRef.current = window.setInterval(() => {
         setDuration((d) => d + 1);
       }, 1000);
-
-      // Set up periodic chunk upload for long recordings
-      chunkTimerRef.current = window.setInterval(async () => {
-        if (duration - lastUploadDurationRef.current >= CHUNK_UPLOAD_THRESHOLD_SECONDS) {
-          lastUploadDurationRef.current = duration;
-          setUploadProgress((p) => Math.min(p + 10, 90));
-          await uploadChunk(false);
-        }
-      }, CHUNK_UPLOAD_INTERVAL_MS);
     } catch (err: any) {
       console.error('Failed to start recording:', err);
 
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
 
@@ -189,26 +132,26 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
         setState('permission-denied');
         const userAgent = (navigator as any).userAgent || '';
         const isIOS = /iPad|iPhone|iPod/.test(userAgent);
-        setError(isIOS
-          ? (lang === 'zh' ? '请在 iPhone "设置" > "Safari浏览器" > "麦克风" 中开启权限' : 'Please enable microphone in Settings > Safari > Microphone')
-          : (lang === 'zh' ? '请在浏览器设置中开启麦克风权限' : 'Please enable microphone permission in browser settings')
+        setError(
+          isIOS
+            ? lang === 'zh'
+              ? '请在 iPhone "设置" > "Safari浏览器" > "麦克风" 中开启权限'
+              : 'Please enable microphone in Settings > Safari > Microphone'
+            : lang === 'zh'
+              ? '请在浏览器设置中开启麦克风权限'
+              : 'Please enable microphone permission in browser settings'
         );
       } else {
         setState('error');
         setError(err.message || String(err));
       }
     }
-  }, [t, lang, duration, uploadChunk]);
+  }, [t, lang]);
 
   const stopRecording = useCallback(async () => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
-    }
-
-    if (chunkTimerRef.current) {
-      clearInterval(chunkTimerRef.current);
-      chunkTimerRef.current = null;
     }
 
     if (mediaRecorderRef.current && state === 'recording') {
@@ -224,77 +167,136 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
       await stopPromise;
 
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
       }
 
-      setState('uploading');
-      setUploadProgress(50);
+      const mimeType = getMimeType();
+      const extension = getExtension(mimeType);
+      const blob = new Blob(chunksRef.current, { type: mimeType });
 
-      // Try chunked upload first if we have a session
-      let recordingId: string | null = null;
-      if (sessionIdRef.current && chunkIndexRef.current > 0) {
+      setState('uploading');
+      setUploadProgress(10);
+
+      try {
+        const recordingId = await uploadToR2Direct(blob, extension, mimeType);
+
+        if (recordingId) {
+          setUploadProgress(100);
+          setState('success');
+          onUploadComplete?.(recordingId);
+
+          setTimeout(() => {
+            setState('idle');
+            setDuration(0);
+            setUploadProgress(0);
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Upload failed, falling back to legacy upload:', err);
         try {
-          recordingId = await uploadChunk(true);
-        } catch (err) {
-          console.error('Final chunk upload failed, falling back to full upload:', err);
+          const recordingId = await uploadLegacy(blob, extension);
+          if (recordingId) {
+            setUploadProgress(100);
+            setState('success');
+            fetch(`/api/process/${recordingId}`, { method: 'POST' });
+            onUploadComplete?.(recordingId);
+
+            setTimeout(() => {
+              setState('idle');
+              setDuration(0);
+              setUploadProgress(0);
+            }, 2000);
+          }
+        } catch (legacyErr) {
+          console.error('Legacy upload also failed:', legacyErr);
+          setError(t('recorder.uploadError'));
+          setState('error');
         }
       }
-
-      // Fallback to traditional upload if chunked didn't work
-      if (!recordingId) {
-        const mimeType = getMimeType();
-        const extension = getExtension(mimeType);
-        const blob = new Blob(chunksRef.current, { type: mimeType });
-        recordingId = await uploadAudio(blob, extension);
-      }
-
-      if (recordingId) {
-        setUploadProgress(100);
-        setState('success');
-        fetch(`/api/process/${recordingId}`, { method: 'POST' });
-        onUploadComplete?.(recordingId);
-
-        setTimeout(() => {
-          setState('idle');
-          setDuration(0);
-          setUploadProgress(0);
-        }, 2000);
-      }
     }
-  }, [state, uploadChunk, onUploadComplete]);
+  }, [state, duration, lang, t, onUploadComplete]);
 
-  const uploadAudio = async (blob: Blob, extension: string): Promise<string | null> => {
-    try {
-      const mimeType = getMimeType();
-      const formData = new FormData();
-      formData.append('audio', blob, `recording_${Date.now()}.${extension}`);
-      formData.append('duration', duration.toString());
-      formData.append('mimeType', mimeType);
-      formData.append('language', lang);
+  const uploadToR2Direct = async (
+    blob: Blob,
+    extension: string,
+    mimeType: string
+  ): Promise<string> => {
+    setUploadProgress(20);
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        body: formData,
-      });
+    const presignedResponse = await fetch('/api/r2/presigned-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileExtension: extension,
+        mimeType,
+      }),
+    });
 
-      if (!response.ok) throw new Error('Upload failed');
-      const data = await response.json();
-      return data.id;
-    } catch (err) {
-      console.error('Upload failed:', err);
-      setError(t('recorder.uploadError'));
-      setState('error');
-      return null;
+    if (!presignedResponse.ok) {
+      throw new Error('Failed to get presigned URL');
     }
+
+    const { key, uploadUrl, publicUrl } = await presignedResponse.json();
+    setUploadProgress(40);
+
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: blob,
+      headers: { 'Content-Type': mimeType },
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload to R2');
+    }
+
+    setUploadProgress(70);
+
+    const createResponse = await fetch('/api/recordings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `Recording ${new Date().toLocaleString()}`,
+        r2AudioKey: key,
+        r2AudioUrl: publicUrl,
+        duration,
+        summaryLanguage: lang,
+        tags: [],
+      }),
+    });
+
+    if (!createResponse.ok) {
+      throw new Error('Failed to create recording');
+    }
+
+    const { id } = await createResponse.json();
+    setUploadProgress(90);
+    return id;
+  };
+
+  const uploadLegacy = async (blob: Blob, extension: string): Promise<string> => {
+    const mimeType = getMimeType();
+    const formData = new FormData();
+    formData.append('audio', blob, `recording_${Date.now()}.${extension}`);
+    formData.append('duration', duration.toString());
+    formData.append('mimeType', mimeType);
+    formData.append('language', lang);
+
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) throw new Error('Upload failed');
+    const data = await response.json();
+    return data.id;
   };
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      if (chunkTimerRef.current) clearInterval(chunkTimerRef.current);
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
   }, []);
@@ -311,7 +313,7 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
               <button
                 onClick={startRecording}
                 className={cn(
-                  "w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center shadow-md transition-all"
+                  'w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-primary hover:bg-primary/90 flex items-center justify-center shadow-md transition-all'
                 )}
               >
                 <Mic className="w-8 h-8 sm:w-10 sm:h-10 text-primary-foreground" />
@@ -322,7 +324,7 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
               <button
                 onClick={stopRecording}
                 className={cn(
-                  "w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-destructive flex items-center justify-center shadow-md animate-pulse"
+                  'w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-destructive flex items-center justify-center shadow-md animate-pulse'
                 )}
               >
                 <Square className="w-7 h-7 sm:w-8 sm:h-8 text-destructive-foreground fill-current" />
@@ -382,13 +384,6 @@ export function Recorder({ onUploadComplete }: RecorderProps) {
                   style={{ width: `${Math.max(uploadProgress, 10)}%` }}
                 />
               </div>
-            </div>
-          )}
-
-          {state === 'recording' && duration > 0 && duration % 30 === 0 && (
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <UploadCloud className="w-3 h-3" />
-              <span>Auto-saving...</span>
             </div>
           )}
 

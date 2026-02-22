@@ -13,6 +13,8 @@
     "@aws-sdk/s3-request-presigner": "^3.995.0",
     "@clerk/nextjs": "^6.12.12",
     "@ricky0123/vad-web": "^0.0.30",
+    "@supabase/supabase-js": "^2.97.0",
+    "@trigger.dev/sdk": "4.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dexie": "^4.3.0",
@@ -24,7 +26,8 @@
     "react-dom": "^19.0.0",
     "recharts": "^3.7.0",
     "tailwind-merge": "^3.0.2",
-    "ulid": "^2.3.0"
+    "ulid": "^2.3.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.13.10",

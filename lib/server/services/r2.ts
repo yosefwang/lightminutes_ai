@@ -1,4 +1,6 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { ulid } from 'ulid';
 import fs from 'fs';
 import path from 'path';
 import type { Recording } from '../db/schema';
@@ -243,4 +245,141 @@ export async function deleteCloudRecording(key: string): Promise<void> {
       Key: key,
     })
   );
+}
+
+// === NEW: Direct R2 Upload Functions (for serverless architecture) ===
+
+/**
+ * Generate a presigned URL for direct upload to R2
+ */
+export async function generatePresignedUploadUrl(
+  userId: string,
+  fileExtension: string,
+  mimeType: string
+): Promise<{ key: string; url: string; publicUrl: string }> {
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
+
+  const fileId = ulid();
+  const key = `users/${userId}/${fileId}/audio.${fileExtension}`;
+
+  const command = new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    ContentType: mimeType,
+  });
+
+  const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : key;
+
+  return { key, url, publicUrl };
+}
+
+/**
+ * Download audio from R2 as Buffer
+ */
+export async function downloadAudioFromR2(key: string): Promise<Buffer> {
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
+
+  const response = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    })
+  );
+
+  if (!response.Body) {
+    throw new Error('No content in R2 response');
+  }
+
+  const bytes = await response.Body.transformToByteArray();
+  return Buffer.from(bytes);
+}
+
+/**
+ * Upload metadata JSON to R2 (new format with user isolation)
+ */
+export async function uploadMetadataToR2V2(
+  recording: {
+    id: string;
+    userId: string;
+    title: string;
+    duration: number | null;
+    createdAt: string | number;
+    transcript: string | null;
+    summary: string | null;
+    status: string;
+    audioUrl: string;
+  }
+): Promise<string> {
+  if (!s3Client) {
+    throw new Error('R2 not configured');
+  }
+
+  const key = `users/${recording.userId}/${recording.id}/metadata.json`;
+  const createdAtNum = typeof recording.createdAt === 'string'
+    ? new Date(recording.createdAt).getTime()
+    : recording.createdAt;
+
+  const payload = {
+    id: recording.id,
+    userId: recording.userId,
+    title: recording.title,
+    duration: recording.duration,
+    createdAt: createdAtNum,
+    timestamp: new Date().toISOString(),
+    transcript: recording.transcript,
+    summary: recording.summary,
+    status: recording.status,
+    audioUrl: recording.audioUrl,
+  };
+
+  await s3Client.send(new PutObjectCommand({
+    Bucket: R2_BUCKET_NAME,
+    Key: key,
+    Body: JSON.stringify(payload, null, 2),
+    ContentType: 'application/json',
+  }));
+
+  const url = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${key}` : key;
+  return url;
+}
+
+/**
+ * Delete recording from R2 (both audio and metadata - new format)
+ */
+export async function deleteFromR2(userId: string, recordingId: string): Promise<void> {
+  if (!s3Client) {
+    return;
+  }
+
+  const audioKey = `users/${userId}/${recordingId}/audio`;
+  const metadataKey = `users/${userId}/${recordingId}/metadata.json`;
+
+  // Try to delete both, ignore errors
+  try {
+    const extensions = ['webm', 'm4a', 'wav', 'mp3'];
+    for (const ext of extensions) {
+      try {
+        await s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: R2_BUCKET_NAME,
+            Key: `${audioKey}.${ext}`,
+          })
+        );
+      } catch {}
+    }
+
+    await s3Client.send(
+      new DeleteObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: metadataKey,
+      })
+    );
+  } catch (error) {
+    console.error('R2 deletion error:', error);
+  }
 }
