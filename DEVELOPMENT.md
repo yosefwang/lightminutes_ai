@@ -1,6 +1,9 @@
 # LiteMinute AI - 详细开发指南 / Detailed Development Guide
 
 > 中英文双语文档 / Bilingual Chinese-English Documentation
+>
+> **注意**: 本项目已重构为 Next.js 15 全栈架构，不再使用分离的 client/server 目录。
+> **Note**: This project has been refactored to Next.js 15 full-stack architecture, no longer using separate client/server directories.
 
 ---
 
@@ -24,7 +27,7 @@
 
 ### 中文
 
-LiteMinute AI 是一个极简、自控的语音转文字与摘要工具，采用常驻 Node.js 进程而非 Serverless 架构，避免冷启动延迟和文件大小限制。
+LiteMinute AI 是一个极简、自控的语音转文字与摘要工具，采用 **Next.js 15 全栈架构**，使用 App Router，前后端一体化。
 
 **核心功能：**
 - 🔐 Clerk 身份验证（登录/注册/登出）
@@ -32,7 +35,7 @@ LiteMinute AI 是一个极简、自控的语音转文字与摘要工具，采用
 - 📤 自动上传音频文件
 - 🤖 AI 语音转文字（Groq Whisper）
 - 📝 智能摘要生成（Claude / DeepSeek）
-- 💾 JSON 本地持久化存储
+- 💾 SQLite 本地持久化存储
 - ☁️ Cloudflare R2 云存储集成
 - 📊 数据统计图表
 - ⚙️ 可自定义提示词模板系统
@@ -42,7 +45,7 @@ LiteMinute AI 是一个极简、自控的语音转文字与摘要工具，采用
 
 ### English
 
-LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization tool. It uses a persistent Node.js process instead of Serverless architecture to avoid cold-start delays and file size limitations.
+LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization tool. It uses **Next.js 15 full-stack architecture** with App Router, integrating frontend and backend.
 
 **Core Features:**
 - 🔐 Clerk Authentication (Sign in/Sign up/Sign out)
@@ -50,7 +53,7 @@ LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization 
 - 📤 Automatic audio file upload
 - 🤖 AI speech-to-text (Groq Whisper)
 - 📝 Intelligent summary generation (Claude / DeepSeek)
-- 💾 JSON local persistent storage
+- 💾 SQLite local persistent storage
 - ☁️ Cloudflare R2 cloud storage integration
 - 📊 Data statistics charts
 - ⚙️ Customizable prompt template system
@@ -65,7 +68,7 @@ LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization 
 ### 前置要求 / Prerequisites
 
 - Node.js >= 20
-- npm 或 bun
+- npm 或 pnpm
 - [Clerk](https://clerk.com) 账号 / Clerk account
 - Groq API Key
 - Anthropic API Key (可选 / Optional)
@@ -78,40 +81,18 @@ LiteMinute AI is a minimalist, self-controlled speech-to-text and summarization 
 git clone <repository-url>
 cd lightminute_ai
 
-# 2. 安装前端依赖 / Install frontend dependencies
-cd client
+# 2. 安装依赖 / Install dependencies
 npm install
-cd ..
 
-# 3. 安装后端依赖 / Install backend dependencies
-cd server
-npm install
-cd ..
-
-# 4. 配置环境变量 / Configure environment variables
-
-# 前端 / Frontend
-cd client
+# 3. 配置环境变量 / Configure environment variables
 cp .env.example .env
-# 编辑 .env 填入 Clerk Publishable Key
-# Edit .env with Clerk Publishable Key
+# 编辑 .env 填入配置 / Edit .env with your configuration
 
-# 后端 / Backend
-cd ../server
-cp .env.example .env
-# 编辑 .env 填入 API keys
-# Edit .env with API keys
-
-# 5. 启动开发服务器 / Start development servers
-
-# 终端1: 启动后端 / Terminal 1: Start backend
-cd server
-npm run dev
-
-# 终端2: 启动前端 / Terminal 2: Start frontend
-cd client
+# 4. 启动开发服务器 / Start development server
 npm run dev
 ```
+
+访问 / Visit: http://localhost:3000
 
 ---
 
@@ -121,74 +102,88 @@ npm run dev
 
 ```
 lightminute_ai/
-├── client/                          # React 前端 / Frontend
-│   ├── src/
-│   │   ├── components/              # 组件 / Components
-│   │   │   ├── ui/                  # Shadcn UI 基础组件
-│   │   │   │   ├── button.tsx
-│   │   │   │   ├── card.tsx
-│   │   │   │   └── badge.tsx
-│   │   │   ├── LandingPage.tsx      # 登录页 / Landing page
-│   │   │   ├── UserMenu.tsx         # 用户菜单 / User menu
-│   │   │   ├── PromptSettingsModal.tsx  # 提示词设置 / Prompt settings
-│   │   │   ├── StatsChart.tsx       # 统计图表 / Stats charts
-│   │   │   ├── AudioPlayer.tsx      # 音频播放器 / Audio player
-│   │   │   ├── Recorder.tsx         # 录音组件 / Recorder
-│   │   │   ├── RecordingList.tsx    # 录音列表 / Recording list
-│   │   │   ├── CloudTab.tsx         # 云端标签 / Cloud tab
-│   │   │   ├── ThemeToggle.tsx      # 主题切换 / Theme toggle
-│   │   │   ├── LanguageToggle.tsx   # 语言切换 / Language toggle
-│   │   │   └── ColorThemePicker.tsx # 配色选择 / Color theme picker
-│   │   ├── contexts/                # React Contexts
-│   │   │   ├── AppContext.tsx       # 应用状态 / App state
-│   │   │   ├── ThemeColorContext.tsx # 配色主题 / Color theme
-│   │   │   └── PromptSettingsContext.tsx # 提示词设置 / Prompt settings
-│   │   ├── hooks/                   # 自定义 Hooks / Custom Hooks
-│   │   │   ├── useLanguage.ts
-│   │   │   └── useTheme.ts
-│   │   ├── i18n/                    # 国际化 / Internationalization
-│   │   │   ├── index.ts
-│   │   │   ├── zh.json
-│   │   │   └── en.json
-│   │   ├── lib/                     # 工具函数 / Utilities
-│   │   │   └── utils.ts
-│   │   ├── App.tsx
-│   │   └── main.tsx
-│   ├── package.json
-│   ├── tailwind.config.js
-│   └── vite.config.ts
-├── server/                          # Hono 后端 / Backend
-│   ├── src/
+├── app/                          # Next.js App Router
+│   ├── api/                     # API 路由 / API Routes
+│   │   ├── upload/route.ts      # 上传音频 / Upload audio
+│   │   ├── process/[id]/route.ts # 处理录音 / Process recording
+│   │   ├── history/route.ts     # 历史记录 / History
+│   │   ├── recording/[id]/route.ts # 单个录音 / Single recording
+│   │   ├── recordings/all/route.ts # 删除所有 / Delete all
+│   │   ├── regenerate-summary/[id]/route.ts # 重新生成摘要
+│   │   ├── cloud/               # 云存储接口 / Cloud storage
+│   │   │   ├── upload/[id]/route.ts
+│   │   │   ├── delete/[id]/route.ts
+│   │   │   ├── list/route.ts
+│   │   │   └── record/[key]/route.ts
+│   │   └── health/route.ts      # 健康检查 / Health check
+│   ├── layout.tsx               # 根布局 / Root layout
+│   └── page.tsx                 # 首页 / Home page
+├── components/                   # React 组件 / Components
+│   ├── ui/                      # UI 基础组件 / Base UI components
+│   │   ├── button.tsx
+│   │   ├── card.tsx
+│   │   └── badge.tsx
+│   ├── App.tsx                  # 主应用组件 / Main app component
+│   ├── LandingPage.tsx          # 登录页 / Landing page
+│   ├── UserMenu.tsx             # 用户菜单 / User menu
+│   ├── PromptSettingsModal.tsx  # 提示词设置 / Prompt settings
+│   ├── StatsChart.tsx           # 统计图表 / Stats charts
+│   ├── AudioPlayer.tsx          # 音频播放器 / Audio player
+│   ├── Recorder.tsx             # 录音组件 / Recorder
+│   ├── RecordingList.tsx        # 录音列表 / Recording list
+│   ├── CloudTab.tsx             # 云端标签 / Cloud tab
+│   ├── ThemeToggle.tsx          # 主题切换 / Theme toggle
+│   ├── LanguageToggle.tsx       # 语言切换 / Language toggle
+│   └── ColorThemePicker.tsx     # 配色选择 / Color theme picker
+├── contexts/                     # React Contexts
+│   ├── AppContext.tsx           # 应用状态 / App state
+│   ├── ThemeColorContext.tsx    # 配色主题 / Color theme
+│   └── PromptSettingsContext.tsx # 提示词设置 / Prompt settings
+├── hooks/                        # 自定义 Hooks / Custom Hooks
+│   ├── useLanguage.ts
+│   ├── useTheme.ts
+│   └── index.ts
+├── i18n/                         # 国际化 / Internationalization
+│   ├── index.ts
+│   ├── zh.json
+│   └── en.json
+├── lib/
+│   ├── server/                   # 服务端代码 / Server-side code
 │   │   ├── db/
-│   │   │   ├── index.ts             # JSON DB 实现 / JSON DB implementation
-│   │   │   └── schema.ts            # 类型定义 / Type definitions
-│   │   ├── services/
-│   │   │   ├── groq.ts              # STT 服务 / Speech-to-Text
-│   │   │   ├── llm.ts               # 摘要服务 / Summarization
-│   │   │   └── r2.ts                # R2 云存储 / R2 cloud storage
-│   │   └── index.ts                 # 路由 / Routes
-│   ├── uploads/                     # 音频文件存储 / Audio storage
-│   ├── data/                        # JSON 数据文件 / JSON data files
-│   └── package.json
-├── README.md
-└── DEVELOPMENT.md                   # 本文档 / This document
+│   │   │   ├── index.ts         # SQLite DB 实现 / SQLite DB implementation
+│   │   │   └── schema.ts        # 类型定义 / Type definitions
+│   │   └── services/
+│   │       ├── groq.ts          # STT 服务 / Speech-to-Text
+│   │       ├── llm.ts           # 摘要服务 / Summarization
+│   │       └── r2.ts            # R2 云存储 / R2 cloud storage
+│   └── utils.ts                  # 工具函数 / Utilities
+├── data/                         # SQLite 数据库目录 / SQLite DB dir
+├── uploads/                      # 音频文件上传目录 / Audio uploads dir
+├── middleware.ts                 # Clerk 中间件 / Clerk middleware
+├── next.config.ts                # Next.js 配置
+├── tailwind.config.ts            # Tailwind CSS 配置
+├── tsconfig.json                 # TypeScript 配置
+├── Dockerfile                    # Docker 镜像配置
+├── docker-compose.yml            # Docker Compose 配置
+├── .env.example                  # 环境变量示例
+├── README.md                     # 项目说明 / Project README
+├── DEVELOPMENT.md                # 本文档 / This document
+└── DEPLOYMENT.md                 # 部署指南 / Deployment guide
 ```
 
 ### 技术栈详情 / Tech Stack Details
 
 | 层级 / Layer | 技术 / Technology | 说明 / Description |
 |-------------|------------------|-------------------|
+| 框架 / Framework | Next.js 15 | 全栈框架 / Full-stack framework |
 | 前端 / Frontend | React 18 | UI 框架 / Framework |
-| | Vite | 构建工具 / Bundler |
 | | Tailwind CSS | 样式框架 / Styling |
-| | Shadcn UI | UI 组件库 / Component library |
 | | Framer Motion | 动画库 / Animations |
 | | Lucide React | 图标库 / Icons |
 | | Recharts | 图表库 / Charts |
-| | Clerk React | 身份验证 / Authentication |
-| 后端 / Backend | Hono.js | Web 框架 / Framework |
-| | Node.js | 运行时 / Runtime |
-| 数据存储 / Data Storage | JSON 文件 / JSON files | 数据存储 / Storage |
+| | Clerk Next.js | 身份验证 / Authentication |
+| 后端 / Backend | Next.js Route Handlers | API 路由 / API routes |
+| 数据存储 / Data Storage | SQLite | 数据存储 / Storage |
 | AI 服务 / AI Services | Groq Whisper | 语音转文字 / STT |
 | | Claude 3.5 Sonnet | 摘要生成 / Summarization |
 | 云存储 / Cloud Storage | Cloudflare R2 | S3 兼容存储 / S3-compatible storage |
@@ -200,7 +195,7 @@ lightminute_ai/
 ### 类型定义 / Type Definitions
 
 ```typescript
-// server/src/db/schema.ts
+// lib/server/db/schema.ts
 export interface Recording {
   id: string;
   title: string;
@@ -233,7 +228,7 @@ export interface Recording {
 
 ### 基础信息 / Base Info
 
-- Base URL: `http://localhost:8787`
+- Base URL: `http://localhost:3000`
 - Content-Type: `application/json` (except upload)
 
 ### 1. 上传音频 / Upload Audio
@@ -378,28 +373,33 @@ export interface Recording {
 
 ### Clerk 身份验证 / Clerk Authentication
 
-在 [Clerk](https://clerk.com) 创建应用后，获取 Publishable Key 并配置到 `.env`：
+在 [Clerk](https://clerk.com) 创建应用后，获取 Publishable Key 和 Secret Key 并配置到 `.env`：
 
 ```env
-VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 ```
 
-在 `main.tsx` 中使用 `ClerkProvider` 包装应用：
+在 `app/layout.tsx` 中使用 `ClerkProvider` 包装应用：
 
 ```typescript
-import { ClerkProvider } from '@clerk/clerk-react';
+import { ClerkProvider } from '@clerk/nextjs';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <ClerkProvider publishableKey={clerkPubKey}>
-    <App />
-  </ClerkProvider>
-);
+export default function RootLayout({ children }) {
+  return (
+    <ClerkProvider>
+      <html lang="zh-CN">
+        <body>{children}</body>
+      </html>
+    </ClerkProvider>
+  );
+}
 ```
 
 使用 `SignedIn` 和 `SignedOut` 组件控制内容显示：
 
 ```typescript
-import { SignedIn, SignedOut } from '@clerk/clerk-react';
+import { SignedIn, SignedOut } from '@clerk/nextjs';
 
 <SignedOut>
   <LandingPage />
@@ -412,7 +412,7 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 ### 国际化配置 / i18n Configuration
 
 ```json
-// client/src/i18n/zh.json
+// i18n/zh.json
 {
   "app": {
     "title": "LiteMinute AI",
@@ -435,7 +435,7 @@ import { SignedIn, SignedOut } from '@clerk/clerk-react';
 使用 `useTheme` Hook 管理明暗模式：
 
 ```typescript
-// client/src/hooks/useTheme.ts
+// hooks/useTheme.ts
 import { useState, useEffect } from 'react';
 
 type Theme = 'light' | 'dark';
@@ -446,6 +446,11 @@ export function useTheme() {
     return (saved as Theme) ||
       (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
   });
+
+  // 立即应用主题 / Apply theme immediately
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('theme', theme);
@@ -479,7 +484,7 @@ interface PromptTemplate {
 }
 ```
 
-Schema 设计支持未来添加更多提示词。
+语言切换时自动更新提示词模板。
 
 ### 音频播放器 / Audio Player
 
@@ -497,21 +502,37 @@ Schema 设计支持未来添加更多提示词。
 ### 环境变量 / Environment Variables
 
 ```env
-# server/.env
-PORT=8787
+# .env
+# Clerk Authentication
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+
+# Groq API (STT - Speech to Text)
 GROQ_API_KEY=gsk_...
-ANTHROPIC_API_KEY=sk-ant-...
-# Cloudflare R2 (可选 / Optional)
+
+# Anthropic API (Summarization)
+ANTHROPIC_API_KEY=sk-ant_...
+
+# STT Model Configuration
+GROQ_STT_MODEL=whisper-large-v3
+STT_LANGUAGE=zh
+
+# LLM Model Configuration
+ANTHROPIC_MODEL=claude-3-5-sonnet-20241022
+LLM_LANGUAGE=zh
+
+# Cloudflare R2 / S3 Configuration (Optional)
 R2_ACCOUNT_ID=...
 R2_ACCESS_KEY_ID=...
 R2_SECRET_ACCESS_KEY=...
 R2_BUCKET_NAME=...
+R2_PUBLIC_URL=...
 ```
 
 ### Groq STT 服务 / Groq STT Service
 
 ```typescript
-// server/src/services/groq.ts
+// lib/server/services/groq.ts
 import Groq from 'groq-sdk';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -531,7 +552,7 @@ export async function transcribeAudio(audioPath: string): Promise<string> {
 ### LLM 摘要服务 / LLM Summary Service
 
 ```typescript
-// server/src/services/llm.ts
+// lib/server/services/llm.ts
 export async function generateSummary(
   transcript: string,
   language: 'zh' | 'en' | 'bilingual'
@@ -550,16 +571,20 @@ export async function generateSummary(
 1. 访问 [clerk.com](https://clerk.com) 并注册账号
 2. 创建新应用
 3. 在配置中启用 Email/Password 登录方式
-4. 复制 Publishable Key
+4. 复制 Publishable Key 和 Secret Key
 
-### 2. 前端集成 / Frontend Integration
+### 2. 中间件配置 / Middleware Configuration
+
+使用 `middleware.ts` 保护路由：
 
 ```typescript
-// main.tsx - 已配置 / Already configured
-import { ClerkProvider } from '@clerk/clerk-react';
+import { clerkMiddleware } from '@clerk/nextjs/server';
 
-// App.tsx - 使用 SignedIn/SignedOut / Use SignedIn/SignedOut
-import { SignedIn, SignedOut, useUser, useClerk } from '@clerk/clerk-react';
+export default clerkMiddleware();
+
+export const config = {
+  matcher: ['/((?!.*\\..*|_next).*)', '/', '/(api|trpc)(.*)'],
+};
 ```
 
 ### 3. 主要组件 / Key Components
@@ -607,21 +632,12 @@ interface PromptTemplate {
   id: string;
   name: string;
   content: string;
+  type: 'transcribe' | 'summary';
 }
 
 // 默认提示词 / Default prompts
-const DEFAULT_PROMPTS = [
-  {
-    id: 'default',
-    name: 'Default Summary',
-    content: '请将以下转录内容整理成一份清晰的会议摘要...'
-  },
-  {
-    id: 'detailed',
-    name: 'Detailed Notes',
-    content: '请详细分析以下转录内容，提供...'
-  }
-];
+const DEFAULT_PROMPTS_ZH = [...];
+const DEFAULT_PROMPTS_EN = [...];
 ```
 
 ### 存储方式 / Storage
@@ -636,6 +652,10 @@ localStorage.setItem('promptSettings', JSON.stringify(prompts));
 const saved = localStorage.getItem('promptSettings');
 ```
 
+### 语言切换 / Language Switching
+
+当用户切换界面语言时，提示词模板会自动切换到对应语言的默认模板。
+
 ### 扩展性 / Extensibility
 
 Schema 设计支持未来添加：
@@ -648,26 +668,22 @@ Schema 设计支持未来添加：
 
 ## 部署指南 / Deployment Guide
 
-### 构建前端 / Build Frontend
+### Docker 部署 / Docker Deployment
+
+详细部署指南请参考 [DEPLOYMENT.md](./DEPLOYMENT.md)。
+
+### 构建生产版本 / Build for Production
 
 ```bash
-cd client
 npm run build
-```
-
-### 启动后端 / Start Backend
-
-```bash
-cd server
-npm run build
-# 使用 PM2 / Using PM2
-pm2 start dist/index.js --name lightminute-server
+npm start
 ```
 
 ---
 
 ## 开发清单 / Development Checklist
 
+- [x] 重构为 Next.js 15 全栈架构 / Refactor to Next.js 15 full-stack
 - [x] Clerk 身份验证集成 / Clerk authentication integration
 - [x] Landing page 设计 / Landing page design
 - [x] 主界面统计图表 / Stats charts in main interface
@@ -675,9 +691,10 @@ pm2 start dist/index.js --name lightminute-server
 - [x] 提示词设置功能 / Prompt settings feature
 - [x] 5 种配色主题 / 5 color themes
 - [x] 音频播放器修复 / Audio player fixes
-- [x] 代码清理和精简 / Code cleanup and refactoring
+- [x] 语言切换时自动更新提示词 / Auto-update prompts on language switch
+- [x] 明暗主题立即生效 / Light/dark theme applies immediately
 - [x] 文档更新 / Documentation updates
 
 ---
 
-*本文档最后更新 / Last updated: 2026-02-21*
+*本文档最后更新 / Last updated: 2026-02-22*
