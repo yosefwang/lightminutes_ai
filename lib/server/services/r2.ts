@@ -19,24 +19,45 @@ interface CloudRecording {
   uploadOption?: 'audio' | 'summary' | 'both';
 }
 
-const R2_ACCOUNT_ID = process.env.R2_ACCOUNT_ID;
-const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
-const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
-const R2_BUCKET_NAME = process.env.R2_BUCKET_NAME;
-const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
-
-export function isR2Configured(): boolean {
-  return !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET_NAME);
+// Lazy initialization for env vars and client
+function getR2Config() {
+  return {
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
+    R2_PUBLIC_URL: process.env.R2_PUBLIC_URL,
+  };
 }
 
-const s3Client = isR2Configured() ? new S3Client({
-  region: 'auto',
-  endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: R2_ACCESS_KEY_ID!,
-    secretAccessKey: R2_SECRET_ACCESS_KEY!,
-  },
-}) : null;
+let s3ClientCache: S3Client | null | undefined = undefined;
+
+function getS3Client(): S3Client | null {
+  if (s3ClientCache !== undefined) return s3ClientCache;
+
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = getR2Config();
+
+  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET_NAME) {
+    s3ClientCache = null;
+    return null;
+  }
+
+  s3ClientCache = new S3Client({
+    region: 'auto',
+    endpoint: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: R2_ACCESS_KEY_ID!,
+      secretAccessKey: R2_SECRET_ACCESS_KEY!,
+    },
+  });
+
+  return s3ClientCache;
+}
+
+export function isR2Configured(): boolean {
+  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME } = getR2Config();
+  return !!(R2_ACCOUNT_ID && R2_ACCESS_KEY_ID && R2_SECRET_ACCESS_KEY && R2_BUCKET_NAME);
+}
 
 function generateTags(recording: Recording): string[] {
   const tags: string[] = ['recording'];
@@ -55,6 +76,9 @@ export async function uploadAudioToR2(
   audioBuffer: Buffer,
   mimeType: string = 'audio/webm'
 ): Promise<string> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME, R2_PUBLIC_URL } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -77,6 +101,9 @@ export async function uploadMetadataToR2(
   recording: Recording,
   audioUrl?: string
 ): Promise<string> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME, R2_PUBLIC_URL } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -114,6 +141,9 @@ export async function uploadToCloud(
   audioBuffer: Buffer | null,
   uploadOption: 'audio' | 'summary' | 'both' = 'both'
 ): Promise<string> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME, R2_PUBLIC_URL } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -141,7 +171,6 @@ export async function uploadToCloud(
       payload.audioBase64 = audioBuffer.toString('base64');
       payload.hasAudio = true;
     } else {
-      // Fallback: read from file if buffer not provided
       const audioPath = path.join(process.cwd(), 'uploads', path.basename(recording.audioPath));
       if (fs.existsSync(audioPath)) {
         const fileBuffer = fs.readFileSync(audioPath);
@@ -163,6 +192,9 @@ export async function uploadToCloud(
 }
 
 export async function removeFromCloud(cloudKey: string): Promise<void> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -176,6 +208,9 @@ export async function removeFromCloud(cloudKey: string): Promise<void> {
 }
 
 export async function listCloudRecordings(): Promise<CloudRecording[]> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
   if (!s3Client) {
     return [];
   }
@@ -195,11 +230,8 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
 
   for (const obj of response.Contents) {
     if (!obj.Key) continue;
-    // Only get metadata.json files for the new format, or .json for old format
     if (!obj.Key.endsWith('/metadata.json') && !obj.Key.endsWith('.json')) continue;
-    // Skip audio files
     if (obj.Key.endsWith('.webm') || obj.Key.endsWith('.m4a') || obj.Key.endsWith('.mp3')) continue;
-    // Skip if it's in a subdirectory but not metadata.json
     if (obj.Key.includes('/') && !obj.Key.endsWith('/metadata.json') && obj.Key.split('/').length > 2) continue;
 
     try {
@@ -235,6 +267,9 @@ export async function listCloudRecordings(): Promise<CloudRecording[]> {
 }
 
 export async function deleteCloudRecording(key: string): Promise<void> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -257,6 +292,9 @@ export async function generatePresignedUploadUrl(
   fileExtension: string,
   mimeType: string
 ): Promise<{ key: string; url: string; publicUrl: string }> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME, R2_PUBLIC_URL } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -280,6 +318,9 @@ export async function generatePresignedUploadUrl(
  * Download audio from R2 as Buffer
  */
 export async function downloadAudioFromR2(key: string): Promise<Buffer> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -315,6 +356,9 @@ export async function uploadMetadataToR2V2(
     audioUrl: string;
   }
 ): Promise<string> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME, R2_PUBLIC_URL } = getR2Config();
+
   if (!s3Client) {
     throw new Error('R2 not configured');
   }
@@ -352,6 +396,9 @@ export async function uploadMetadataToR2V2(
  * Delete recording from R2 (both audio and metadata - new format)
  */
 export async function deleteFromR2(userId: string, recordingId: string): Promise<void> {
+  const s3Client = getS3Client();
+  const { R2_BUCKET_NAME } = getR2Config();
+
   if (!s3Client) {
     return;
   }
@@ -359,7 +406,6 @@ export async function deleteFromR2(userId: string, recordingId: string): Promise
   const audioKey = `users/${userId}/${recordingId}/audio`;
   const metadataKey = `users/${userId}/${recordingId}/metadata.json`;
 
-  // Try to delete both, ignore errors
   try {
     const extensions = ['webm', 'm4a', 'wav', 'mp3'];
     for (const ext of extensions) {

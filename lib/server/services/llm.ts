@@ -1,8 +1,13 @@
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
-const LLM_LANGUAGE = process.env.LLM_LANGUAGE || 'zh';
+function getEnvVars() {
+  return {
+    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+    LLM_LANGUAGE: process.env.LLM_LANGUAGE || 'zh',
+  };
+}
 
 function getLanguageInstructions(language?: string) {
+  const { LLM_LANGUAGE } = getEnvVars();
   const lang = language || LLM_LANGUAGE;
   if (lang === 'en') {
     return 'Please respond in English.';
@@ -13,6 +18,7 @@ function getLanguageInstructions(language?: string) {
 }
 
 function buildDefaultPrompt(transcript: string, language?: string) {
+  const { LLM_LANGUAGE } = getEnvVars();
   const lang = language || LLM_LANGUAGE;
 
   if (lang === 'en') {
@@ -56,6 +62,7 @@ ${getLanguageInstructions(language)}`;
 }
 
 export async function generateSummary(transcript: string, language?: string, promptTemplate?: string): Promise<string> {
+  const { ANTHROPIC_API_KEY, ANTHROPIC_MODEL } = getEnvVars();
   if (!ANTHROPIC_API_KEY) {
     throw new Error('ANTHROPIC_API_KEY is not set');
   }
