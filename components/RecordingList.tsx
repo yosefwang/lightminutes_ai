@@ -82,7 +82,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [regenerationState, setRegenerationState] = useState<Record<string, 'idle' | 'regenerating' | 'completed'>>({});
 
-  const fetchRecordings = useCallback(async () => {
+  const doFetch = async () => {
     try {
       const res = await fetch('/api/history');
       if (res.ok) {
@@ -94,11 +94,11 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    fetchRecordings();
-  }, [refreshTrigger, fetchRecordings]);
+    doFetch();
+  }, [refreshTrigger]);
 
   // Poll for updates when there are processing recordings
   useEffect(() => {
@@ -106,11 +106,11 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
-      fetchRecordings();
+      doFetch();
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [recordings, fetchRecordings]);
+  }, [recordings]);
 
   const deleteRecording = async (id: string) => {
     if (!window.confirm(t('history.deleteConfirm'))) return;
@@ -154,7 +154,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
         body: JSON.stringify({ uploadOption: option }),
       });
       if (res.ok) {
-        await fetchRecordings();
+        await doFetch();
         onRefresh?.();
       }
     } catch (err) {
@@ -170,7 +170,7 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     try {
       const res = await fetch(`/api/cloud/delete/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        await fetchRecordings();
+        await doFetch();
         onRefresh?.();
       }
     } catch (err) {
