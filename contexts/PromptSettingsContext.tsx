@@ -62,6 +62,19 @@ const DEFAULT_SUMMARY_PROMPTS_ZH: PromptTemplate[] = [
 
 格式要清晰，便于执行。`,
   },
+  {
+    id: 'summary-faithful-clean-zh',
+    name: '忠实文字整理',
+    type: 'summary',
+    content: `请对以下转录内容进行忠实的文字整理：
+
+1. 尽量保留所有原文内容
+2. 原文不清楚、不通顺的地方，做最小程度的改写和补写，确保通顺和逻辑顺畅
+3. 需要列表的地方请使用列表格式
+4. 需要有序列表的地方请使用带数字的有序列表
+
+请忠实于原意，不要添加额外的解读或摘要。`,
+  },
 ];
 
 // English defaults
@@ -113,6 +126,19 @@ Please record all information as detailed as possible.`,
 4. Time requirements (if mentioned)
 
 Format should be clear and easy to execute.`,
+  },
+  {
+    id: 'summary-faithful-clean-en',
+    name: 'Faithful Transcript Cleaning',
+    type: 'summary',
+    content: `Please perform faithful cleaning of the following transcript:
+
+1. Preserve all original content as much as possible
+2. Where the original text is unclear or incoherent, make minimal rewrites and additions to ensure fluency and logical flow
+3. Use bullet lists where lists are needed
+4. Use numbered lists where ordered lists are needed
+
+Please be faithful to the original intent, do not add additional interpretation or summary.`,
   },
 ];
 

@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { getRecording, updateRecording } from '@/lib/server/db';
-import { generateSummary } from '@/lib/server/services/llm';
 import { getAuthUserId } from '@/lib/server/auth';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
+import { tasks } from '@trigger.dev/sdk';
+import type { regenerateSummary } from '@/trigger/process-recording';
 
 // Convert Supabase recording to legacy format
 function convertToLegacyFormat(supabaseRecording: any): any {
@@ -47,30 +48,6 @@ async function getRecordingFromAnywhere(id: string, userId: string) {
   return { source: null, recording: null };
 }
 
-async function updateRecordingAnywhere(id: string, userId: string, updates: any) {
-  // Try Supabase first if configured
-  if (isSupabaseConfigured && supabaseAdmin) {
-    const supabaseUpdates: any = {};
-    if (updates.status !== undefined) supabaseUpdates.status = updates.status;
-    if (updates.summary !== undefined) supabaseUpdates.summary = updates.summary;
-    if (updates.transcript !== undefined) supabaseUpdates.transcript = updates.transcript;
-
-    const { error } = await supabaseAdmin
-      .from('recordings')
-      .update(supabaseUpdates)
-      .eq('id', id)
-      .eq('user_id', userId);
-
-    if (!error) {
-      return true;
-    }
-  }
-
-  // Fallback to legacy JSON DB
-  await updateRecording(id, updates);
-  return true;
-}
-
 export const maxDuration = 300;
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -91,21 +68,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const language = body.language || recording.summaryLanguage;
   const promptTemplate = body.promptTemplate;
 
+  // Try Trigger.dev first if Supabase is configured
+  if (source === 'supabase') {
+    await tasks.trigger<typeof regenerateSummary>('regenerate-summary', {
+      recordingId: id,
+      userId,
+      summaryLanguage: language,
+      promptTemplate,
+    });
+
+    return NextResponse.json({ success: true });
+  }
+
+  // Fallback to legacy processing
   // Update status to processing
-  await updateRecordingAnywhere(id, userId, { status: 'processing', summary: null });
+  await updateRecording(id, { status: 'processing', summary: null });
 
   // Process in background
   (async () => {
     try {
+      const { generateSummary } = await import('@/lib/server/services/llm');
       const summary = await generateSummary(
         recording.transcript!,
         language,
         promptTemplate
       );
-      await updateRecordingAnywhere(id, userId, { summary, status: 'completed' });
+      await updateRecording(id, { summary, status: 'completed' });
     } catch (error) {
       console.error('Regenerate summary error:', error);
-      await updateRecordingAnywhere(id, userId, { status: 'failed' });
+      await updateRecording(id, { status: 'failed' });
     }
   })();
 

@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Noto_Sans_SC, JetBrains_Mono } from 'next/font/google';
 import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
+import { AppProvider } from '@/contexts/AppContext';
+import { PromptSettingsProvider } from '@/contexts/PromptSettingsContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -53,8 +55,12 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="zh-CN" suppressHydrationWarning>
         <head />
-        <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans dark`}>
-          {children}
+        <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans`}>
+          <AppProvider>
+            <PromptSettingsProvider>
+              {children}
+            </PromptSettingsProvider>
+          </AppProvider>
         </body>
       </html>
     </ClerkProvider>
