@@ -1,52 +1,34 @@
 version: '3.8'
 
 services:
-  # Backend service
-  backend:
-    image: yosefwang/lightminutes_backend:latest
+  # LightMinute AI - Next.js Full Stack Application
+  app:
+    image: yosefwang/lightminute-ai:latest
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
-    container_name: lightminute-backend
+    container_name: lightminute-ai
     restart: unless-stopped
     ports:
-      - "8787:8787"
-    # Load environment variables from server/.env
+      - "3000:3000"
+    # Load environment variables from .env file
     env_file:
-      - ./server/.env
+      - ./.env
     environment:
       - NODE_ENV=production
     volumes:
       # Persist uploaded audio files
-      - backend-uploads:/app/uploads
+      - app-uploads:/app/uploads
       # Persist database data
-      - backend-data:/app/data
-    networks:
-      - lightminute-network
-
-  # Frontend service
-  frontend:
-    image: yosefwang/lightminutes_frontend:latest
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-      # Pass environment variables from client/.env for build time
-      args:
-        - VITE_CLERK_PUBLISHABLE_KEY=${VITE_CLERK_PUBLISHABLE_KEY:-}
-    container_name: lightminute-frontend
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
+      - app-data:/app/data
     networks:
       - lightminute-network
 
 # Volumes for persistent data
 volumes:
-  backend-uploads:
+  app-uploads:
     name: lightminute-uploads
-  backend-data:
+  app-data:
     name: lightminute-data
 
 # Internal network
