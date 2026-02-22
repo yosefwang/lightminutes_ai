@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, Save, Plus, Trash2, Check, Edit2, CheckCircle2, Type, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Save, Plus, Trash2, Check, Edit2, CheckCircle2, Type, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
-import { usePromptSettings, type PromptTemplate } from '@/contexts/PromptSettingsContext';
+import { usePromptSettings, type PromptTemplate, isBilingualName, isBilingualContent, getPromptName, getPromptContent } from '@/contexts/PromptSettingsContext';
 import { Button } from './ui/button';
 import { Card, CardHeader, CardContent } from './ui/card';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,9 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
     addPrompt,
     deletePrompt,
     getPromptsByType,
+    getPromptName: getPromptNameFromContext,
+    getPromptContent: getPromptContentFromContext,
+    isProcessingPrompt,
   } = usePromptSettings();
 
   const [viewTab, setViewTab] = useState<ViewTab>('summary');
@@ -52,8 +55,8 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
 
     if (targetPrompt) {
       setSelectedPromptId(targetPrompt.id);
-      setEditedContent(targetPrompt.content);
-      setEditedName(targetPrompt.name);
+      setEditedContent(getPromptContent(targetPrompt, lang));
+      setEditedName(getPromptName(targetPrompt, lang));
     } else {
       setSelectedPromptId(null);
       setEditedContent('');
@@ -61,22 +64,52 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
     }
     setIsEditingName(false);
     setMobileView('list');
-  }, [isOpen, viewTab, prompts, activeTranscribePromptId, activeSummaryPromptId]);
+  }, [isOpen, viewTab, prompts, activeTranscribePromptId, activeSummaryPromptId, lang]);
 
   useEffect(() => {
     if (selectedPromptId) {
       const prompt = prompts.find((p) => p.id === selectedPromptId);
       if (prompt) {
-        setEditedContent(prompt.content);
-        setEditedName(prompt.name);
+        setEditedContent(getPromptContent(prompt, lang));
+        setEditedName(getPromptName(prompt, lang));
       }
     }
-  }, [selectedPromptId, prompts]);
+  }, [selectedPromptId, prompts, lang]);
 
   const handleSave = () => {
     if (!selectedPromptId) return;
     setIsSaving(true);
-    updatePrompt(selectedPromptId, { name: editedName, content: editedContent });
+
+    const prompt = prompts.find((p) => p.id === selectedPromptId);
+    if (!prompt) return;
+
+    // Update the content for the current language
+    let newName = prompt.name;
+    let newContent = prompt.content;
+
+    if (isBilingualName(prompt.name)) {
+      newName = { ...prompt.name, [lang]: editedName };
+    } else {
+      // Convert to bilingual if not already
+      if (lang === 'zh') {
+        newName = { zh: editedName, en: prompt.name as string };
+      } else {
+        newName = { zh: prompt.name as string, en: editedName };
+      }
+    }
+
+    if (isBilingualContent(prompt.content)) {
+      newContent = { ...prompt.content, [lang]: editedContent };
+    } else {
+      // Convert to bilingual if not already
+      if (lang === 'zh') {
+        newContent = { zh: editedContent, en: prompt.content as string };
+      } else {
+        newContent = { zh: prompt.content as string, en: editedContent };
+      }
+    }
+
+    updatePrompt(selectedPromptId, { name: newName, content: newContent });
     setTimeout(() => {
       setIsSaving(false);
       setShowSaved(true);
@@ -98,16 +131,26 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
     }
   };
 
-  const handleAddPrompt = () => {
+  const handleAddPrompt = async () => {
     if (!newPromptName.trim()) return;
-    const defaultContent = lang === 'zh'
-      ? (viewTab === 'transcribe'
-          ? '请准确转录以下音频内容。'
-          : '请将以下转录内容整理成一份清晰的摘要。')
-      : (viewTab === 'transcribe'
-          ? 'Please transcribe the following audio accurately.'
-          : 'Please summarize the following transcript clearly.');
-    addPrompt(newPromptName.trim(), defaultContent, viewTab);
+    const defaultContentZh = viewTab === 'transcribe'
+      ? ''
+      : '请将以下转录内容整理成一份清晰的摘要。';
+    const defaultContentEn = viewTab === 'transcribe'
+      ? ''
+      : 'Please summarize the following transcript clearly.';
+
+    const defaultName = {
+      zh: newPromptName.trim(),
+      en: newPromptName.trim(),
+    };
+
+    const defaultContent = {
+      zh: defaultContentZh,
+      en: defaultContentEn,
+    };
+
+    await addPrompt(defaultName, defaultContent, viewTab);
     setNewPromptName('');
     setIsAdding(false);
   };
@@ -127,7 +170,22 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
 
   const handleSaveName = () => {
     if (!selectedPromptId) return;
-    updatePrompt(selectedPromptId, { name: editedName });
+
+    const prompt = prompts.find((p) => p.id === selectedPromptId);
+    if (!prompt) return;
+
+    let newName = prompt.name;
+    if (isBilingualName(prompt.name)) {
+      newName = { ...prompt.name, [lang]: editedName };
+    } else {
+      if (lang === 'zh') {
+        newName = { zh: editedName, en: prompt.name as string };
+      } else {
+        newName = { zh: prompt.name as string, en: editedName };
+      }
+    }
+
+    updatePrompt(selectedPromptId, { name: newName });
     setIsEditingName(false);
   };
 
@@ -216,12 +274,12 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                               : 'hover:bg-white/[0.06] text-slate-200'
                           )}
                         >
-                          <span className="text-sm font-medium truncate flex-1">{prompt.name}</span>
+                          <span className="text-sm font-medium truncate flex-1">{getPromptName(prompt, lang)}</span>
                           <div className="flex items-center gap-1 shrink-0">
                             {activeId === prompt.id && (
                               <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                             )}
-                            {currentPrompts.length > 1 && (
+                            {!prompt.isDefault && currentPrompts.length > 1 && (
                               <button
                                 onClick={(e) => handleDeletePrompt(e, prompt.id)}
                                 className={cn(
@@ -294,6 +352,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                         prompts={prompts}
                         activeId={activeId}
                         lang={lang}
+                        isProcessingPrompt={isProcessingPrompt}
                       />
                     ) : (
                       <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
@@ -327,7 +386,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                               )}
                             >
                               <div className="flex flex-col items-start min-w-0 flex-1">
-                                <span className="font-medium truncate">{prompt.name}</span>
+                                <span className="font-medium truncate">{getPromptName(prompt, lang)}</span>
                                 {activeId === prompt.id && (
                                   <span className="text-xs opacity-80">
                                     {lang === 'zh' ? '✓ 当前使用' : '✓ Active'}
@@ -418,6 +477,7 @@ export function PromptSettingsModal({ isOpen, onClose }: PromptSettingsModalProp
                             activeId={activeId}
                             lang={lang}
                             isMobile={true}
+                            isProcessingPrompt={isProcessingPrompt}
                           />
                         )}
                       </motion.div>
@@ -451,6 +511,7 @@ function EditorContent({
   activeId,
   lang,
   isMobile = false,
+  isProcessingPrompt = false,
 }: {
   editedName: string;
   editedContent: string;
@@ -468,9 +529,11 @@ function EditorContent({
   activeId: string | null;
   lang: 'zh' | 'en';
   isMobile?: boolean;
+  isProcessingPrompt?: boolean;
 }) {
   const prompt = prompts.find((p) => p.id === selectedPromptId);
   const isActive = prompt && activeId === prompt.id;
+  const isDefault = prompt?.isDefault;
 
   return (
     <>
@@ -488,7 +551,7 @@ function EditorContent({
                   if (e.key === 'Enter') handleSaveName();
                   if (e.key === 'Escape') {
                     const prompt = prompts.find((p) => p.id === selectedPromptId);
-                    if (prompt) setEditedName(prompt.name);
+                    if (prompt) setEditedName(getPromptName(prompt, lang));
                     setIsEditingName(false);
                   }
                 }}
@@ -503,7 +566,7 @@ function EditorContent({
               <h3 className={cn("font-medium truncate text-slate-100", isMobile ? "text-base" : "text-lg")}>
                 {editedName}
               </h3>
-              {!isMobile && (
+              {!isMobile && !isDefault && (
                 <button
                   onClick={() => setIsEditingName(true)}
                   className="p-1 hover:bg-white/[0.06] rounded-xl text-slate-400 hover:text-slate-200 min-h-[2rem] min-w-[2rem]"
@@ -531,10 +594,15 @@ function EditorContent({
               size={isMobile ? "sm" : "sm"}
               variant={isActive ? 'secondary' : 'default'}
               onClick={() => handleActivatePrompt(prompt)}
-              disabled={isActive}
+              disabled={isActive || isProcessingPrompt}
               className="min-h-[2.5rem]"
             >
-              {isActive ? (
+              {isProcessingPrompt ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  <span>{lang === 'zh' ? '处理中...' : 'Processing...'}</span>
+                </>
+              ) : isActive ? (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-1.5" />
                   <span>{lang === 'zh' ? '已激活' : 'Active'}</span>
@@ -547,7 +615,7 @@ function EditorContent({
               )}
             </Button>
           )}
-          <Button size={isMobile ? "sm" : "sm"} onClick={handleSave} disabled={isSaving}
+          <Button size={isMobile ? "sm" : "sm"} onClick={handleSave} disabled={isSaving || isProcessingPrompt}
                   className="min-h-[2.5rem]">
             <Save className="w-4 h-4 mr-1.5" />
             <span>{lang === 'zh' ? '保存' : 'Save'}</span>
@@ -565,8 +633,8 @@ function EditorContent({
       />
       <p className={cn("text-xs text-slate-400 shrink-0", isMobile ? "px-3 py-2" : "mt-2")}>
         {lang === 'zh'
-          ? '提示词会自动保存到本地存储中'
-          : 'Prompts are automatically saved to local storage'}
+          ? '当前正在编辑中文版本，切换语言可编辑另一版本'
+          : 'Currently editing English version, switch language to edit the other'}
       </p>
     </>
   );

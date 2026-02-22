@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 import { createRecording as createLegacyRecording } from '@/lib/server/db';
 import { tasks } from '@trigger.dev/sdk';
+import type { processRecording } from '@/trigger/process-recording';
 
 export async function POST(request: Request) {
   try {
@@ -59,8 +60,8 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      // Trigger Trigger.dev task
-      await tasks.trigger('process-recording', {
+      // Trigger the process-recording task via Trigger.dev
+      await tasks.trigger<typeof processRecording>('process-recording', {
         recordingId: data.id,
         userId,
         r2AudioKey,

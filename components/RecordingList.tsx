@@ -19,11 +19,12 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { useApp } from '@/contexts/AppContext';
-import { usePromptSettings } from '@/contexts/PromptSettingsContext';
+import { usePromptSettings, getPromptName, getPromptContent } from '@/contexts/PromptSettingsContext';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { AudioPlayer } from './AudioPlayer';
+import { MarkdownRenderer } from './MarkdownRenderer';
 import { cn } from '@/lib/utils';
 
 export type SummaryLanguage = 'zh' | 'en' | 'bilingual';
@@ -52,7 +53,7 @@ interface RecordingListProps {
 
 export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListProps) {
   const { t, lang } = useApp();
-  const { getActiveSummaryPrompt } = usePromptSettings();
+  const { getActiveSummaryPrompt, getPromptName: getPromptNameFromContext, getPromptContent: getPromptContentFromContext } = usePromptSettings();
   const [recordings, setRecordings] = useState<Recording[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -251,18 +252,6 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
     }
   };
 
-  const renderMarkdown = (markdown: string) => {
-    return markdown
-      .replace(/^### (.*$)/gim, '<h3 class="text-sm font-semibold mt-3 mb-1.5">$1</h3>')
-      .replace(/^## (.*$)/gim, '<h2 class="text-base font-bold mt-4 mb-2">$1</h2>')
-      .replace(/^# (.*$)/gim, '<h1 class="text-lg font-bold mt-5 mb-3">$1</h1>')
-      .replace(/\*\*(.*)\*\*/gim, '<strong class="font-semibold">$1</strong>')
-      .replace(/\*(.*)\*/gim, '<em class="italic">$1</em>')
-      .replace(/^\- (.*$)/gim, '<li class="ml-4 list-disc">$1</li>')
-      .replace(/\n\n/g, '</p><p class="my-2">')
-      .replace(/\n/g, '<br>');
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -284,6 +273,8 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
       </div>
     );
   }
+
+  const activePrompt = getActiveSummaryPrompt();
 
   return (
     <div className="space-y-4">
@@ -408,13 +399,13 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
                           {lang === 'zh' ? '当前模板：' : 'Current template:'}
                         </span>
                         <span className="text-sm font-medium">
-                          {getActiveSummaryPrompt().name}
+                          {getPromptName(activePrompt, lang)}
                         </span>
                       </div>
                       <Button
                         variant={regenState === 'completed' ? 'default' : 'secondary'}
                         size="sm"
-                        onClick={() => regenerateSummary(recording.id, getActiveSummaryPrompt().content)}
+                        onClick={() => regenerateSummary(recording.id, getPromptContent(activePrompt, lang))}
                         disabled={isProcessing}
                       >
                         {isProcessing ? (
@@ -462,12 +453,11 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
                           )}
                         </Button>
                       </div>
-                      <div
-                        className="prose prose-sm dark:prose-invert bg-muted/30 rounded-lg p-4 text-sm text-foreground"
-                        dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(recording.summary),
-                        }}
-                      />
+                      <div className="bg-muted/30 rounded-lg p-4">
+                        <MarkdownRenderer className="text-sm">
+                          {recording.summary}
+                        </MarkdownRenderer>
+                      </div>
                     </div>
                   )}
 

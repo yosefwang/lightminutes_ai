@@ -68,15 +68,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const language = body.language || recording.summaryLanguage;
   const promptTemplate = body.promptTemplate;
 
-  // Try Trigger.dev first if Supabase is configured
-  if (source === 'supabase') {
+  // Try Trigger.dev first for Supabase records
+  if (source === 'supabase' && isSupabaseConfigured) {
     await tasks.trigger<typeof regenerateSummary>('regenerate-summary', {
       recordingId: id,
       userId,
-      summaryLanguage: language,
+      summaryLanguage: language as 'zh' | 'en' | 'bilingual',
       promptTemplate,
     });
-
     return NextResponse.json({ success: true });
   }
 

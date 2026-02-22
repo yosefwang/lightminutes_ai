@@ -52,3 +52,4 @@ _legacy/
 .*
 !.gitignore
 !.env.example
+CLAUDE.md
