@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getAuthUserId } from '@/lib/server/auth';
 import { ulid } from 'ulid';
+import { v4 as uuidv4 } from 'uuid';
 import { isSupabaseConfigured, supabaseAdmin } from '@/lib/server/supabase';
 import { createRecording as createLegacyRecording } from '@/lib/server/db';
 
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
       const { data, error } = await supabaseAdmin
         .from('recordings')
         .insert({
-          id: recordingId,
+          id: uuidv4(),
           user_id: userId,
           title: recordingTitle,
           r2_audio_key: r2AudioKey,
@@ -60,7 +61,7 @@ export async function POST(request: Request) {
       // await triggerClient.sendEvent({
       //   name: 'recording.created',
       //   payload: {
-      //     recordingId,
+      //     recordingId: data.id,
       //     userId,
       //     r2AudioKey,
       //     r2AudioUrl,
@@ -68,7 +69,7 @@ export async function POST(request: Request) {
       //   },
       // });
 
-      return NextResponse.json({ id: recordingId, recording: data });
+      return NextResponse.json({ id: data.id, recording: data });
     }
 
     // Fallback to legacy JSON DB
