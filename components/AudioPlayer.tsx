@@ -28,109 +28,98 @@ const formatRemainingTime = (seconds: number): string => {
 };
 
 export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, className, duration: propDuration }: AudioPlayerProps) {
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(propDuration && propDuration > 0 ? propDuration : 0);
   const [isMuted, setIsMuted] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [dragTime, setDragTime] = useState(0);
   const [wasPlayingBeforeDrag, setWasPlayingBeforeDrag] = useState(false);
+  const [src, setSrc] = useState<string>('');
 
   const getAudioSrc = useCallback(() => {
     if (audioBase64) {
       return `data:audio/webm;base64,${audioBase64}`;
     }
-    return audioPath || '';
+    if (!audioPath) return '';
+
+    // If it's a cloudflarestorage.com URL, use our proxy instead
+    if (audioPath.includes('r2.cloudflarestorage.com')) {
+      // Extract the key from the URL
+      const url = new URL(audioPath);
+      const key = url.pathname.startsWith('/') ? url.pathname.slice(1) : url.pathname;
+      return `/api/r2/audio/${key}`;
+    }
+
+    // If it looks like a users/... path and not a full URL, use proxy
+    if (audioPath.startsWith('users/') && !audioPath.startsWith('http')) {
+      return `/api/r2/audio/${audioPath}`;
+    }
+
+    return audioPath;
   }, [audioPath, audioBase64]);
 
+  // Update src when inputs change
+  useEffect(() => {
+    const newSrc = getAudioSrc();
+    setSrc(newSrc);
+  }, [getAudioSrc]);
+
+  // Update duration from props
   useEffect(() => {
     if (propDuration && propDuration > 0 && isFinite(propDuration)) {
       setDuration(propDuration);
     }
   }, [propDuration]);
 
+  // Handle play/pause
   useEffect(() => {
-    const src = getAudioSrc();
-    if (!src) return;
-
-    if (!audioRef.current) {
-      audioRef.current = new Audio();
-    }
-
     const audio = audioRef.current;
-
-    const handleLoadedMetadata = () => {
-      if (audio.duration && isFinite(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
-      }
-    };
-
-    const handleTimeUpdate = () => {
-      if (!isDragging) {
-        setCurrentTime(audio.currentTime || 0);
-      }
-      if (duration === 0 || !isFinite(duration)) {
-        handleLoadedMetadata();
-      }
-    };
-
-    const handleEnded = () => {
-      onPlayPause();
-      setCurrentTime(0);
-    };
-
-    const handleCanPlay = () => {
-      handleLoadedMetadata();
-    };
-
-    const handleError = (e: Event) => {
-      console.error('Audio error:', e);
-    };
-
-    audio.addEventListener('loadedmetadata', handleLoadedMetadata);
-    audio.addEventListener('canplay', handleCanPlay);
-    audio.addEventListener('timeupdate', handleTimeUpdate);
-    audio.addEventListener('ended', handleEnded);
-    audio.addEventListener('error', handleError);
-
-    if (audio.src !== src) {
-      audio.src = src;
-      audio.load();
-    }
-
-    return () => {
-      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      audio.removeEventListener('canplay', handleCanPlay);
-      audio.removeEventListener('timeupdate', handleTimeUpdate);
-      audio.removeEventListener('ended', handleEnded);
-      audio.removeEventListener('error', handleError);
-    };
-  }, [getAudioSrc, onPlayPause, duration, isDragging]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
+    if (!audio) return;
 
     if (isPlaying) {
-      audioRef.current.play().catch(e => console.log('Play failed:', e));
+      audio.play().catch(e => console.log('Play failed:', e));
     } else {
-      audioRef.current.pause();
+      audio.pause();
     }
   }, [isPlaying]);
 
+  // Handle mute
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.muted = isMuted;
+    const audio = audioRef.current;
+    if (audio) {
+      audio.muted = isMuted;
     }
   }, [isMuted]);
+
+  const handleLoadedMetadata = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.duration && isFinite(audio.duration) && audio.duration > 0) {
+      setDuration(audio.duration);
+    }
+  }, []);
+
+  const handleTimeUpdate = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && !isDragging) {
+      setCurrentTime(audio.currentTime || 0);
+    }
+  }, [isDragging]);
+
+  const handleEnded = useCallback(() => {
+    onPlayPause();
+    setCurrentTime(0);
+  }, [onPlayPause]);
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = parseFloat(e.target.value);
     if (!isNaN(time)) {
+      const audio = audioRef.current;
       const validDuration = duration > 0 && isFinite(duration) ? duration : 0;
       const clampedTime = validDuration > 0 ? Math.max(0, Math.min(time, validDuration)) : 0;
       setDragTime(clampedTime);
-      if (audioRef.current && validDuration > 0) {
-        audioRef.current.currentTime = clampedTime;
+      if (audio && validDuration > 0) {
+        audio.currentTime = clampedTime;
       }
     }
   };
@@ -139,8 +128,9 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     setIsDragging(true);
     setDragTime(currentTime);
     setWasPlayingBeforeDrag(isPlaying);
-    if (audioRef.current && isPlaying) {
-      audioRef.current.pause();
+    const audio = audioRef.current;
+    if (audio && isPlaying) {
+      audio.pause();
     }
   };
 
@@ -148,14 +138,15 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
     setIsDragging(false);
     const target = e.target as HTMLInputElement;
     const time = parseFloat(target.value);
-    if (audioRef.current && !isNaN(time)) {
+    const audio = audioRef.current;
+    if (audio && !isNaN(time)) {
       const validDuration = duration > 0 && isFinite(duration) ? duration : 0;
       const clampedTime = validDuration > 0 ? Math.max(0, Math.min(time, validDuration)) : 0;
       if (validDuration > 0) {
-        audioRef.current.currentTime = clampedTime;
+        audio.currentTime = clampedTime;
         setCurrentTime(clampedTime);
         if (wasPlayingBeforeDrag) {
-          audioRef.current.play().catch(e => console.log('Play failed:', e));
+          audio.play().catch(e => console.log('Play failed:', e));
         }
       }
     }
@@ -165,12 +156,20 @@ export function AudioPlayer({ audioPath, audioBase64, isPlaying, onPlayPause, cl
   const validDuration = duration > 0 && isFinite(duration) ? duration : 0;
   const remainingTime = validDuration > 0 ? Math.max(0, validDuration - displayTime) : 0;
   const progress = validDuration > 0 ? (displayTime / validDuration) * 100 : 0;
-
-  const src = getAudioSrc();
   const hasAudio = !!src;
 
   return (
     <div className={cn('flex items-center gap-2 sm:gap-3 w-full', className)}>
+      <audio
+        ref={audioRef}
+        src={src}
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
+        onEnded={handleEnded}
+        onCanPlay={handleLoadedMetadata}
+        preload="metadata"
+      />
+
       <button
         onClick={onPlayPause}
         disabled={!hasAudio}

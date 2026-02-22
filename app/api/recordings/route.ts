@@ -18,6 +18,7 @@ export async function POST(request: Request) {
       duration,
       summaryLanguage = 'zh',
       tags = [],
+      promptTemplate,
     } = body;
 
     if (!r2AudioKey || !r2AudioUrl) {
@@ -65,6 +66,7 @@ export async function POST(request: Request) {
         r2AudioKey,
         r2AudioUrl,
         summaryLanguage: (summaryLanguage || 'zh') as 'zh' | 'en' | 'bilingual',
+        promptTemplate,
       });
 
       return NextResponse.json({ id: data.id, recording: data });

@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import { AppProvider } from '@/contexts/AppContext';
 import { PromptSettingsProvider } from '@/contexts/PromptSettingsContext';
+import { ThemeColorProvider } from '@/contexts/ThemeColorContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -57,9 +58,11 @@ export default function RootLayout({
         <head />
         <body className={`${inter.variable} ${notoSansSC.variable} ${jetBrainsMono.variable} font-sans`}>
           <AppProvider>
-            <PromptSettingsProvider>
-              {children}
-            </PromptSettingsProvider>
+            <ThemeColorProvider>
+              <PromptSettingsProvider>
+                {children}
+              </PromptSettingsProvider>
+            </ThemeColorProvider>
           </AppProvider>
         </body>
       </html>

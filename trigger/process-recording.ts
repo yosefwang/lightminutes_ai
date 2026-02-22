@@ -18,8 +18,9 @@ export const processRecording = task({
     r2AudioKey: string;
     r2AudioUrl: string;
     summaryLanguage: 'zh' | 'en' | 'bilingual';
+    promptTemplate?: string;
   }) => {
-    const { recordingId, userId, r2AudioKey, r2AudioUrl, summaryLanguage } = payload;
+    const { recordingId, userId, r2AudioKey, r2AudioUrl, summaryLanguage, promptTemplate } = payload;
 
     console.log('Starting recording processing', { recordingId, userId });
 
@@ -55,7 +56,8 @@ export const processRecording = task({
       console.log('Generating summary');
       const summary = await generateSummary(
         transcript,
-        summaryLanguage
+        summaryLanguage,
+        promptTemplate
       );
 
       const { data: recording } = await supabaseAdmin
@@ -127,8 +129,9 @@ export const regenerateSummary = task({
     recordingId: string;
     userId: string;
     summaryLanguage?: 'zh' | 'en' | 'bilingual';
+    promptTemplate?: string;
   }) => {
-    const { recordingId, userId, summaryLanguage } = payload;
+    const { recordingId, userId, summaryLanguage, promptTemplate } = payload;
 
     console.log('Starting summary regeneration', { recordingId, userId });
 
@@ -160,7 +163,7 @@ export const regenerateSummary = task({
         .eq('id', recordingId)
         .eq('user_id', userId);
 
-      const summary = await generateSummary(recording.transcript, language);
+      const summary = await generateSummary(recording.transcript, language, promptTemplate);
 
       await supabaseAdmin
         .from('recordings')
