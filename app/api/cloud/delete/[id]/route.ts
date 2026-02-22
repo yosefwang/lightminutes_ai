@@ -18,19 +18,23 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
     return NextResponse.json({ error: 'Recording not in cloud' }, { status: 400 });
   }
 
-  try {
-    await updateRecording(id, { cloudStatus: 'deleting' });
-    await removeFromCloud(recording.cloudKey);
-    await updateRecording(id, {
-      cloudStatus: 'not_uploaded',
-      cloudKey: null,
-      cloudUrl: null,
-    });
+  // Update status to deleting immediately
+  await updateRecording(id, { cloudStatus: 'deleting' });
 
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Cloud delete error:', error);
-    await updateRecording(id, { cloudStatus: 'uploaded' });
-    return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
-  }
+  // Do the actual delete in the background, return immediately
+  (async () => {
+    try {
+      await removeFromCloud(recording.cloudKey!);
+      await updateRecording(id, {
+        cloudStatus: 'not_uploaded',
+        cloudKey: null,
+        cloudUrl: null,
+      });
+    } catch (error) {
+      console.error('Cloud delete error:', error);
+      await updateRecording(id, { cloudStatus: 'uploaded' });
+    }
+  })();
+
+  return NextResponse.json({ success: true });
 }

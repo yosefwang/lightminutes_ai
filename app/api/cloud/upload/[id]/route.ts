@@ -16,32 +16,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'R2 not configured' }, { status: 500 });
   }
 
+  let uploadOption = 'both' as 'audio' | 'summary' | 'both';
   try {
-    await updateRecording(id, { cloudStatus: 'uploading' });
-
-    let uploadOption = 'both' as 'audio' | 'summary' | 'both';
-    try {
-      const body = await request.json().catch(() => ({}));
-      if (body.uploadOption && ['audio', 'summary', 'both'].includes(body.uploadOption)) {
-        uploadOption = body.uploadOption;
-      }
-    } catch (e) {
-      // use default
+    const body = await request.json().catch(() => ({}));
+    if (body.uploadOption && ['audio', 'summary', 'both'].includes(body.uploadOption)) {
+      uploadOption = body.uploadOption;
     }
-
-    const cloudUrl = await uploadToCloud(recording, null, uploadOption);
-    const cloudKey = `recordings/${recording.id}.json`;
-
-    await updateRecording(id, {
-      cloudStatus: 'uploaded',
-      cloudKey,
-      cloudUrl,
-    });
-
-    return NextResponse.json({ success: true, cloudUrl });
-  } catch (error) {
-    console.error('Cloud upload error:', error);
-    await updateRecording(id, { cloudStatus: 'not_uploaded' });
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+  } catch (e) {
+    // use default
   }
+
+  // Update status to uploading immediately
+  await updateRecording(id, { cloudStatus: 'uploading' });
+
+  // Do the actual upload in the background, return immediately
+  (async () => {
+    try {
+      const cloudUrl = await uploadToCloud(recording, null, uploadOption);
+      const cloudKey = `recordings/${recording.id}.json`;
+
+      await updateRecording(id, {
+        cloudStatus: 'uploaded',
+        cloudKey,
+        cloudUrl,
+      });
+    } catch (error) {
+      console.error('Cloud upload error:', error);
+      await updateRecording(id, { cloudStatus: 'not_uploaded' });
+    }
+  })();
+
+  return NextResponse.json({ success: true });
 }
