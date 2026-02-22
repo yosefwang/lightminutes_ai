@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { SignedIn, SignedOut } from '@clerk/nextjs';
 import { Mic, HardDrive, Cloud, BarChart3 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { Recorder } from './Recorder';
 import { RecordingList } from './RecordingList';
@@ -85,23 +84,18 @@ export function App() {
                 ))}
               </div>
 
-              {/* Tab Content */}
-              <motion.div
-                key={tab}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15, ease: [0.22, 1, 0.36, 1] }}
-              >
-                {tab === 'local' && (
+              {/* Tab Content - Render all, show/hide with CSS to avoid remounting */}
+              <div className="relative">
+                <div className={tab === 'local' ? 'block' : 'hidden'}>
                   <RecordingList refreshTrigger={refreshTrigger} onRefresh={refresh} />
-                )}
-                {tab === 'cloud' && (
+                </div>
+                <div className={tab === 'cloud' ? 'block' : 'hidden'}>
                   <CloudTab refreshTrigger={refreshTrigger} />
-                )}
-                {tab === 'stats' && (
+                </div>
+                <div className={tab === 'stats' ? 'block' : 'hidden'}>
                   <StatsChart refreshTrigger={refreshTrigger} />
-                )}
-              </motion.div>
+                </div>
+              </div>
             </div>
           </main>
 
