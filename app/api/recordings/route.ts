@@ -57,17 +57,12 @@ export async function POST(request: Request) {
         throw error;
       }
 
-      // TODO: Trigger Trigger.dev task here
-      // await triggerClient.sendEvent({
-      //   name: 'recording.created',
-      //   payload: {
-      //     recordingId: data.id,
-      //     userId,
-      //     r2AudioKey,
-      //     r2AudioUrl,
-      //     summaryLanguage,
-      //   },
-      // });
+      // Trigger processing in background
+      fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/process-supabase/${data.id}`, {
+        method: 'POST',
+      }).catch((err) => {
+        console.error('Failed to trigger processing:', err);
+      });
 
       return NextResponse.json({ id: data.id, recording: data });
     }
