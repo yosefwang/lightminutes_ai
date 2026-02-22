@@ -19,7 +19,7 @@ import {
   Folder,
   RefreshCw,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/contexts/AppContext';
 import { usePromptSettings } from '@/contexts/PromptSettingsContext';
 import { Card, CardContent, CardHeader } from './ui/card';
@@ -63,8 +63,16 @@ const containerVariants: any = {
 };
 
 const itemVariants: any = {
-  hidden: { opacity: 0, y: 10 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.22, 1, 0.36, 1] } },
+  hidden: { opacity: 0, y: 10, scale: 0.98 },
+  show: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: {
+      duration: 0.4,
+      ease: [0.22, 1, 0.36, 1]
+    }
+  },
 };
 
 export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListProps) {
@@ -354,281 +362,317 @@ export function RecordingList({ refreshTrigger = 0, onRefresh }: RecordingListPr
         initial="hidden"
         animate="show"
         className="space-y-3"
+        layout
       >
-        {recordings.map((recording) => {
-          const isUploadDisabled = recording.status !== 'completed';
-          const isUploading = uploadingId === recording.id || recording.cloudStatus === 'uploading';
-          const isDeleting = deletingId === recording.id || recording.cloudStatus === 'deleting';
-          const isUploaded = recording.cloudStatus === 'uploaded';
-          const isPlaying = playingId === recording.id;
-          const uploadOption = uploadOptions[recording.id] || 'both';
-          const isExpanded = expandedId === recording.id;
-          const regenState = regenerationState[recording.id] || 'idle';
-          const isProcessing = recording.status === 'processing' || regenState === 'regenerating';
+        <AnimatePresence mode="popLayout">
+          {recordings.map((recording) => {
+            const isUploadDisabled = recording.status !== 'completed';
+            const isUploading = uploadingId === recording.id || recording.cloudStatus === 'uploading';
+            const isDeleting = deletingId === recording.id || recording.cloudStatus === 'deleting';
+            const isUploaded = recording.cloudStatus === 'uploaded';
+            const isPlaying = playingId === recording.id;
+            const uploadOption = uploadOptions[recording.id] || 'both';
+            const isExpanded = expandedId === recording.id;
+            const regenState = regenerationState[recording.id] || 'idle';
+            const isProcessing = recording.status === 'processing' || regenState === 'regenerating';
 
-          return (
-            <motion.div key={recording.id} variants={itemVariants}>
-              <Card className="overflow-hidden">
-                <CardHeader
-                  className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors"
-                  onClick={() => setExpandedId(isExpanded ? null : recording.id)}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-2">
-                        <h3 className="font-medium truncate">{recording.title}</h3>
-                        <Badge variant={getStatusVariant(recording.status)}>
-                          {t(`status.${recording.status}`)}
-                        </Badge>
-                        {isUploaded && (
-                          <Badge variant="secondary" className="flex items-center gap-1">
-                            <Cloud className="w-3 h-3" />
-                            <span>{t('cloud.uploaded')}</span>
+            return (
+              <motion.div
+                key={recording.id}
+                variants={itemVariants}
+                layout
+                initial="hidden"
+                animate="show"
+                exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+              >
+                <Card className="overflow-hidden">
+                  <CardHeader
+                    className="pb-3 cursor-pointer hover:bg-accent/50 transition-colors"
+                    onClick={() => setExpandedId(isExpanded ? null : recording.id)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <h3 className="font-medium truncate">{recording.title}</h3>
+                          <Badge variant={getStatusVariant(recording.status)}>
+                            {t(`status.${recording.status}`)}
                           </Badge>
-                        )}
-                      </div>
-
-                      {recording.tags.length > 0 && (
-                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                          <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                          {recording.tags.slice(0, 3).map((tag, i) => (
-                            <Badge key={i} variant="outline" className="text-xs">
-                              {tag}
+                          {isUploaded && (
+                            <Badge variant="secondary" className="flex items-center gap-1">
+                              <Cloud className="w-3 h-3" />
+                              <span>{t('cloud.uploaded')}</span>
                             </Badge>
-                          ))}
-                          {recording.tags.length > 3 && (
-                            <span className="text-xs text-muted-foreground">+{recording.tags.length - 3}</span>
                           )}
                         </div>
-                      )}
 
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          <span>{formatDate(recording.createdAt)}</span>
-                        </div>
-                        {recording.duration && (
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-4 h-4" />
-                            <span>{formatDuration(recording.duration)}</span>
+                        {recording.tags.length > 0 && (
+                          <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                            <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                            {recording.tags.slice(0, 3).map((tag, i) => (
+                              <Badge key={i} variant="outline" className="text-xs">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {recording.tags.length > 3 && (
+                              <span className="text-xs text-muted-foreground">+{recording.tags.length - 3}</span>
+                            )}
                           </div>
                         )}
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-1 ml-2 shrink-0">
-                      {isUploaded ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFromCloud(recording.id);
-                          }}
-                          disabled={isDeleting}
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                          title={t('cloud.remove')}
-                        >
-                          {isDeleting ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <CloudOff className="w-5 h-5" />
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-4 h-4" />
+                            <span>{formatDate(recording.createdAt)}</span>
+                          </div>
+                          {recording.duration && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-4 h-4" />
+                              <span>{formatDuration(recording.duration)}</span>
+                            </div>
                           )}
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            uploadToCloud(recording.id, uploadOption);
-                          }}
-                          disabled={isUploadDisabled || isUploading}
-                          className={cn(
-                            !isUploadDisabled && 'text-primary hover:text-primary hover:bg-primary/10'
-                          )}
-                          title={t('cloud.upload')}
-                        >
-                          {isUploading ? (
-                            <Loader2 className="w-5 h-5 animate-spin" />
-                          ) : (
-                            <UploadCloud className="w-5 h-5" />
-                          )}
-                        </Button>
-                      )}
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteRecording(recording.id);
-                        }}
-                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                        title={t('history.delete')}
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </Button>
-
-                      {isExpanded ? (
-                        <ChevronUp className="w-5 h-5 text-muted-foreground" />
-                      ) : (
-                        <ChevronDown className="w-5 h-5 text-muted-foreground" />
-                      )}
-                    </div>
-                  </div>
-                </CardHeader>
-
-                {isExpanded && (
-                  <CardContent className="pt-0 space-y-4">
-                    <AudioPlayer
-                      audioPath={recording.audioPath}
-                      duration={recording.duration}
-                      isPlaying={isPlaying}
-                      onPlayPause={() => handlePlayPause(recording.id)}
-                      className="py-2"
-                    />
-
-                    {recording.status === 'completed' && !isUploaded && (
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-t border-border pt-2">
-                        <div className="flex items-center gap-2">
-                          <Folder className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {t('cloud.uploadOptions')}:
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(['audio', 'summary', 'both'] as const).map((opt) => (
-                            <Button
-                              key={opt}
-                              variant={uploadOption === opt ? 'default' : 'secondary'}
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setUploadOptions((prev) => ({ ...prev, [recording.id]: opt }));
-                              }}
-                            >
-                              {t(`cloud.${opt === 'audio' ? 'audioOnly' : opt === 'summary' ? 'summaryOnly' : 'both'}`)}
-                            </Button>
-                          ))}
                         </div>
                       </div>
-                    )}
 
-                    {recording.status === 'completed' && (
-                      <div className="flex items-center justify-between gap-3 pb-3 border-b">
-                        <div className="flex items-center gap-2">
-                          <RefreshCw className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">
-                            {lang === 'zh' ? '当前模板：' : 'Current template:'}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {getActiveSummaryPrompt().name}
-                          </span>
-                        </div>
-                        <Button
-                          variant={regenState === 'completed' ? 'default' : 'secondary'}
-                          size="sm"
-                          onClick={() => regenerateSummary(recording.id, getActiveSummaryPrompt().content)}
-                          disabled={isProcessing}
-                        >
-                          {isProcessing ? (
-                            <span className="flex items-center gap-1">
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                              <span>{lang === 'zh' ? '正在重新生成...' : 'Regenerating...'}</span>
-                            </span>
-                          ) : regenState === 'completed' ? (
-                            <span className="flex items-center gap-1">
-                              <Check className="w-3 h-3" />
-                              <span>{lang === 'zh' ? '已完成' : 'Completed'}</span>
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1">
-                              <RefreshCw className="w-3 h-3" />
-                              <span>{lang === 'zh' ? '重新生成' : 'Regenerate'}</span>
-                            </span>
-                          )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {recording.summary && (
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <h4 className="font-medium text-primary">
-                            {t('summary.title')}
-                          </h4>
+                      <div className="flex items-center gap-1 ml-2 shrink-0">
+                        {isUploaded ? (
                           <Button
                             variant="ghost"
-                            size="sm"
-                            onClick={() => copyToClipboard(recording.summary!, recording.id)}
-                            className="text-muted-foreground hover:text-foreground"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromCloud(recording.id);
+                            }}
+                            disabled={isDeleting}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            title={t('cloud.remove')}
                           >
-                            {copiedId === recording.id ? (
-                              <>
-                                <Check className="w-4 h-4 text-emerald-500 mr-1.5" />
-                                <span>{t('history.copied')}</span>
-                              </>
+                            {isDeleting ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
                             ) : (
-                              <>
-                                <Copy className="w-4 h-4 mr-1.5" />
-                                <span>{t('history.copy')}</span>
-                              </>
+                              <CloudOff className="w-5 h-5" />
                             )}
                           </Button>
-                        </div>
-                        <div
-                          className="prose prose-sm dark:prose-invert bg-muted/30 rounded-lg p-4 text-sm text-foreground"
-                          dangerouslySetInnerHTML={{
-                            __html: renderMarkdown(recording.summary),
-                          }}
-                        />
-                      </div>
-                    )}
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              uploadToCloud(recording.id, uploadOption);
+                            }}
+                            disabled={isUploadDisabled || isUploading}
+                            className={cn(
+                              !isUploadDisabled && 'text-primary hover:text-primary hover:bg-primary/10'
+                            )}
+                            title={t('cloud.upload')}
+                          >
+                            {isUploading ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <UploadCloud className="w-5 h-5" />
+                            )}
+                          </Button>
+                        )}
 
-                    {recording.status === 'processing' && !recording.summary && (
-                      <div className="flex items-center gap-2 text-primary">
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>{t('summary.generating')}</span>
-                      </div>
-                    )}
-
-                    {recording.transcript && (
-                      <div>
                         <Button
                           variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            setShowTranscript((prev) => ({
-                              ...prev,
-                              [recording.id]: !prev[recording.id],
-                            }))
-                          }
-                          className="text-muted-foreground hover:text-foreground p-0 h-auto"
+                          size="icon"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteRecording(recording.id);
+                          }}
+                          className="text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title={t('history.delete')}
                         >
-                          {showTranscript[recording.id]
-                            ? t('history.hideTranscript')
-                            : t('history.showTranscript')}
+                          <Trash2 className="w-5 h-5" />
                         </Button>
-                        {showTranscript[recording.id] && (
-                          <div className="mt-2 bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground whitespace-pre-wrap">
-                            {recording.transcript}
-                          </div>
+
+                        {isExpanded ? (
+                          <ChevronUp className="w-5 h-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="w-5 h-5 text-muted-foreground" />
                         )}
                       </div>
-                    )}
+                    </div>
+                  </CardHeader>
 
-                    {!recording.summary && recording.status === 'completed' && (
-                      <p className="text-muted-foreground text-sm">
-                        {t('history.noSummary')}
-                      </p>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                      >
+                        <CardContent className="pt-0 space-y-4">
+                          <AudioPlayer
+                            audioPath={recording.audioPath}
+                            duration={recording.duration}
+                            isPlaying={isPlaying}
+                            onPlayPause={() => handlePlayPause(recording.id)}
+                            className="py-2"
+                          />
+
+                          {recording.status === 'completed' && !isUploaded && (
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pb-3 border-t border-border pt-2">
+                              <div className="flex items-center gap-2">
+                                <Folder className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {t('cloud.uploadOptions')}:
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {(['audio', 'summary', 'both'] as const).map((opt) => (
+                                  <Button
+                                    key={opt}
+                                    variant={uploadOption === opt ? 'default' : 'secondary'}
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setUploadOptions((prev) => ({ ...prev, [recording.id]: opt }));
+                                    }}
+                                  >
+                                    {t(`cloud.${opt === 'audio' ? 'audioOnly' : opt === 'summary' ? 'summaryOnly' : 'both'}`)}
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {recording.status === 'completed' && (
+                            <div className="flex items-center justify-between gap-3 pb-3 border-b">
+                              <div className="flex items-center gap-2">
+                                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {lang === 'zh' ? '当前模板：' : 'Current template:'}
+                                </span>
+                                <span className="text-sm font-medium">
+                                  {getActiveSummaryPrompt().name}
+                                </span>
+                              </div>
+                              <Button
+                                variant={regenState === 'completed' ? 'default' : 'secondary'}
+                                size="sm"
+                                onClick={() => regenerateSummary(recording.id, getActiveSummaryPrompt().content)}
+                                disabled={isProcessing}
+                              >
+                                {isProcessing ? (
+                                  <span className="flex items-center gap-1">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    <span>{lang === 'zh' ? '正在重新生成...' : 'Regenerating...'}</span>
+                                  </span>
+                                ) : regenState === 'completed' ? (
+                                  <span className="flex items-center gap-1">
+                                    <Check className="w-3 h-3" />
+                                    <span>{lang === 'zh' ? '已完成' : 'Completed'}</span>
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <RefreshCw className="w-3 h-3" />
+                                    <span>{lang === 'zh' ? '重新生成' : 'Regenerate'}</span>
+                                  </span>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
+                          <AnimatePresence mode="wait">
+                            {recording.summary && (
+                              <motion.div
+                                key="summary"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h4 className="font-medium text-primary">
+                                      {t('summary.title')}
+                                    </h4>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => copyToClipboard(recording.summary!, recording.id)}
+                                      className="text-muted-foreground hover:text-foreground"
+                                    >
+                                      {copiedId === recording.id ? (
+                                        <>
+                                          <Check className="w-4 h-4 text-emerald-500 mr-1.5" />
+                                          <span>{t('history.copied')}</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-4 h-4 mr-1.5" />
+                                          <span>{t('history.copy')}</span>
+                                        </>
+                                      )}
+                                    </Button>
+                                  </div>
+                                  <div
+                                    className="prose prose-sm dark:prose-invert bg-muted/30 rounded-lg p-4 text-sm text-foreground"
+                                    dangerouslySetInnerHTML={{
+                                      __html: renderMarkdown(recording.summary),
+                                    }}
+                                  />
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+
+                          {recording.status === 'processing' && !recording.summary && (
+                            <div className="flex items-center gap-2 text-primary">
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>{t('summary.generating')}</span>
+                            </div>
+                          )}
+
+                          <AnimatePresence>
+                            {recording.transcript && (
+                              <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.3 }}
+                              >
+                                <div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() =>
+                                      setShowTranscript((prev) => ({
+                                        ...prev,
+                                        [recording.id]: !prev[recording.id],
+                                      }))
+                                    }
+                                    className="text-muted-foreground hover:text-foreground p-0 h-auto"
+                                  >
+                                    {showTranscript[recording.id]
+                                      ? t('history.hideTranscript')
+                                      : t('history.showTranscript')}
+                                  </Button>
+                                  {showTranscript[recording.id] && (
+                                    <div className="mt-2 bg-muted/30 rounded-lg p-4 text-sm text-muted-foreground whitespace-pre-wrap">
+                                      {recording.transcript}
+                                    </div>
+                                  )}
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+
+                          {!recording.summary && recording.status === 'completed' && (
+                            <p className="text-muted-foreground text-sm">
+                              {t('history.noSummary')}
+                            </p>
+                          )}
+                        </CardContent>
+                      </motion.div>
                     )}
-                  </CardContent>
-                )}
-              </Card>
-            </motion.div>
-          );
-        })}
+                  </AnimatePresence>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
